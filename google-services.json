@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "256007802506",
+    "project_id": "stylepitch-2",
+    "storage_bucket": "stylepitch-2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256007802506:android:264bbdcc96c115fb93e773",
+        "android_client_info": {
+          "package_name": "com.stylepitch.signin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "256007802506-o828qjia2bll4icait1sfqd1mqpbdkda.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.stylepitch.signin",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "256007802506-0f12hjubdk4oje52pbkl5lul1gjncat0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-vp3n6YGf1zSzkDLfkPoWOHUA3a-mFlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "256007802506-0f12hjubdk4oje52pbkl5lul1gjncat0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "256007802506-hbuh655j7q39rqj9kag4j0jdutnk43k7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.stylepitch.signin"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
