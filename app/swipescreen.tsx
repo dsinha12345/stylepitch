@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
 import firestore from '@react-native-firebase/firestore';
@@ -18,6 +18,7 @@ interface Design {
 const SwipeScreen: React.FC = () => {
   const [designs, setDesigns] = useState<Design[]>([]);
   const [savedCards, setSavedCards] = useState<string[]>([]);
+  const swiperRef = useRef<Swiper<Design>>(null);
   
   const user = auth().currentUser;
 
@@ -81,10 +82,34 @@ const SwipeScreen: React.FC = () => {
         });
         console.log(`Design ${id} disliked!`);
       }
+      // Update the local state to reflect the change
+      setDesigns((prevDesigns) =>
+        prevDesigns.map((design) =>
+          design.id === id
+            ? {
+                ...design,
+                likes: direction === 'right' ? design.likes + 1 : design.likes,
+                dislikes: direction === 'left' ? design.dislikes + 1 : design.dislikes,
+              }
+            : design
+        )
+      );
     } catch (error) {
       console.error('Error updating likes/dislikes:', error);
     }
   };
+
+  const handleLikePress = useCallback(() => {
+    if (swiperRef.current) {
+      swiperRef.current.swipeRight();
+    }
+  }, []);
+
+  const handleDislikePress = useCallback(() => {
+    if (swiperRef.current) {
+      swiperRef.current.swipeLeft();
+    }
+  }, []);
 
   const renderCard = useCallback(
     (card: Design | undefined) => {
@@ -98,16 +123,6 @@ const SwipeScreen: React.FC = () => {
 
       return (
         <View key={card.id} style={styles.card}>
-          <ScrollView contentContainerStyle={styles.cardScrollView}>
-            {card.imageUrls.map((imageUrl, index) => (
-              <RNImage
-                key={`${card.id}-${index}`}
-                source={{ uri: imageUrl }}
-                style={styles.cardImage}
-                resizeMode="cover"
-              />
-            ))}
-          </ScrollView>
           <View style={styles.cardTextContainer}>
             <Text style={styles.cardName}>{card.title || 'Design'}</Text>
             <TouchableOpacity
@@ -125,10 +140,30 @@ const SwipeScreen: React.FC = () => {
               />
             </TouchableOpacity>
           </View>
+          <ScrollView contentContainerStyle={styles.cardScrollView}>
+            {card.imageUrls.map((imageUrl, index) => (
+              <RNImage
+                key={`${card.id}-${index}`}
+                source={{ uri: imageUrl }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+          <View style={styles.likesContainer}>
+            <TouchableOpacity style={styles.likeItem} onPress={handleLikePress}>
+              <RNImage source={require('../assets/like.jpg')} style={styles.likeIcon} />
+              <Text style={styles.likesText}>{card.likes}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.likeItem} onPress={handleDislikePress}>
+              <RNImage source={require('../assets/dislike.jpg')} style={styles.likeIcon} />
+              <Text style={styles.dislikesText}>{card.dislikes}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     },
-    [isSaved, savePost]
+    [isSaved, savePost, handleLikePress, handleDislikePress]
   );
 
   const memoizedDesigns = useMemo(() => designs, [designs]);
@@ -144,6 +179,7 @@ const SwipeScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <Swiper
+        ref={swiperRef}
         cards={memoizedDesigns}
         renderCard={renderCard}
         backgroundColor={'#f5f5f5'}
@@ -171,6 +207,7 @@ const SwipeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9f9',
   },
   swiperContainer: {
     flex: 1,
@@ -189,25 +226,29 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     overflow: 'hidden',
+    borderWidth : 1,
+    borderColor: '#a5a5a5',
   },
   cardScrollView: {
     flexGrow: 1,
   },
   cardImage: {
     width: '100%',
-    height: SCREEN_HEIGHT * 0.8,
+    height: SCREEN_HEIGHT * 0.7,
   },
   cardTextContainer: {
-    padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 15,
+    backgroundColor: '#fff',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   cardName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: 'black',
   },
   saveButton: {
     width: 40,
@@ -221,6 +262,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     height: SCREEN_HEIGHT * 0.6,
+  },
+  likesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 15,
+  },
+  likeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  likeIcon: {
+    width: 25,
+    height: 25,
+    marginRight: 8,
+  },
+  likesText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  dislikesText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#F44336',
   },
 });
 
