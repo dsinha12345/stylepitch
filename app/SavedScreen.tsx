@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, Dimensions, Image, RefreshControl, To
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from './types'; // Adjust the path as necessary
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -13,22 +14,21 @@ interface Design {
   imageUrls: string[];
 }
 
-const Card = ({ id, title, imageUrls }: { id: string; title?: string; imageUrls: string[] }) => {
-  const navigation = useNavigation();
 
-  return (
-    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('CardDetailScreen', { id })}>
-      {imageUrls.length > 0 && (
-        <Image source={{ uri: imageUrls[0] }} style={styles.cardImage} resizeMode="cover" />
-      )}
-      <View style={styles.cardTextContainer}>
-        <Text style={styles.cardText}>{title || 'Untitled Design'}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
+const Card = ({ title, imageUrls, onPress }: { title?: string; imageUrls: string[]; onPress: () => void }) => (
+  <TouchableOpacity style={styles.card} onPress={onPress}>
+    {imageUrls.length > 0 && (
+      <Image source={{ uri: imageUrls[0] }} style={styles.cardImage} resizeMode="cover" />
+    )}
+    <View style={styles.cardTextContainer}>
+      <Text style={styles.cardText}>{title || 'Untitled Design'}</Text>
+    </View>
+  </TouchableOpacity>
+);
+
 
 const SavedScreen = () => {
+  const navigation = useNavigation<RootStackNavigationProp>(); 
   const [savedDesigns, setSavedDesigns] = useState<Design[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const user = auth().currentUser;
@@ -59,12 +59,16 @@ const SavedScreen = () => {
     fetchSavedDesigns();
   }, [user]);
 
+  const navigateToCardDetail = (id: string) => {
+    navigation.navigate('CardDetailScreen', { id }); // Navigate to CardDetailScreen with the design ID
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
         data={savedDesigns}
         renderItem={({ item }) => (
-          <Card title={item.title} imageUrls={item.imageUrls} id={item.id} />
+          <Card title={item.title} imageUrls={item.imageUrls} onPress={() => navigateToCardDetail(item.id)} />
         )}
         keyExtractor={item => item.id}
         numColumns={2}
