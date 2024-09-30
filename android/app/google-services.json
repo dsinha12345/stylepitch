@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "256007802506",
+    "project_id": "stylepitch-2",
+    "storage_bucket": "stylepitch-2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256007802506:android:264bbdcc96c115fb93e773",
+        "android_client_info": {
+          "package_name": "com.stylepitch.signin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-vp3n6YGf1zSzkDLfkPoWOHUA3a-mFlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

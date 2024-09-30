@@ -1,10 +1,12 @@
 // LoginScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types';
+import { GoogleSignin, GoogleSigninButton,  SignInResponse } from '@react-native-google-signin/google-signin';
+
 
 const logo = require('../assets/company_logo_only.png'); // Adjust the path based on your project structure
 
@@ -16,6 +18,11 @@ const LoginScreen = () => {
   const [lastName, setLastName] = useState('');
   const navigation = useNavigation<RootStackNavigationProp>();
 
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '256007802506-0f12hjubdk4oje52pbkl5lul1gjncat0.apps.googleusercontent.com', // Get this from your google-services.json
+    });
+  }, []);
   const toggleForm = () => {
     setIsLogin(!isLogin);
     setEmail('');
@@ -42,7 +49,7 @@ const LoginScreen = () => {
       .signInWithEmailAndPassword(email, password)
       .then(() => {
         Alert.alert('Login Success', `Welcome back, ${email}`);
-        navigation.navigate('UserProfile');
+        navigation.navigate('Main');
       })
       .catch(error => {
         if (error.code === 'auth/user-not-found') {
@@ -77,7 +84,7 @@ const LoginScreen = () => {
           })
           .then(() => {
             Alert.alert('Registration Success', `Account created for ${email}`);
-            navigation.navigate('UserProfile');
+            navigation.navigate('Main');
           })
           .catch((error) => {
             Alert.alert('Error', 'Failed to save user data. Please try again.');
@@ -96,7 +103,32 @@ const LoginScreen = () => {
         }
       });
   };
-
+  const handleGoogleSignIn = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+  
+      // Cast the result to SignInResponse type
+      const { idToken } = await GoogleSignin.signIn() as SignInResponse;
+  
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const userCredential = await auth().signInWithCredential(googleCredential);
+  
+      // Your existing logic to handle new user
+      if (userCredential.additionalUserInfo?.isNewUser) {
+        await firestore().collection('users').doc(userCredential.user.uid).set({
+          firstName: userCredential.user.displayName?.split(' ')[0] || '',
+          lastName: userCredential.user.displayName?.split(' ').slice(1).join(' ') || '',
+          email: userCredential.user.email,
+        });
+      }
+  
+      Alert.alert('Login Success', `Welcome, ${userCredential.user.displayName}`);
+      navigation.navigate('Main');
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Error', 'Google Sign-In failed. Please try again.');
+    }
+  };
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Image source={logo} style={styles.logo} resizeMode="contain" />
@@ -141,6 +173,13 @@ const LoginScreen = () => {
         <Text style={styles.submitButtonText}>{isLogin ? 'Login' : 'Register'}</Text>
       </TouchableOpacity>
 
+      <GoogleSigninButton
+        style={styles.googleButton}
+        size={GoogleSigninButton.Size.Wide}
+        color={GoogleSigninButton.Color.Dark}
+        onPress={handleGoogleSignIn}
+      />
+
       <TouchableOpacity onPress={toggleForm}>
         <Text style={styles.toggleText}>
           {isLogin ? 'Don\'t have an account? Register' : 'Already have an account? Login'}
@@ -156,6 +195,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    backgroundColor : "#f8f9f9"
+  },
+  googleButton: {
+    width: 192,
+    height: 48,
+    marginTop: 10,
   },
   header: {
     fontSize: 28,
@@ -178,7 +223,7 @@ const styles = StyleSheet.create({
   submitButton: {
     width: '100%',
     padding: 15,
-    backgroundColor: '#007BFF',
+    backgroundColor: '#fb5a03',
     alignItems: 'center',
     borderRadius: 8,
     marginVertical: 10,
@@ -188,7 +233,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   toggleText: {
-    color: '#007BFF',
+    color: '#fb5a03',
     marginTop: 10,
   },
 });

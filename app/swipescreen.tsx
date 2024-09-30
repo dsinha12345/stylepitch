@@ -1,78 +1,181 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
-const data = [
-  { id: 1, name: 'John Doe', image: 'https://images.squarespace-cdn.com/content/v1/54bc6cffe4b0fee4b02bd3c5/c88798a2-934e-440e-9e1d-89db4abd232a/IMG_4935.jpg' },
-  { id: 2, name: 'Jane Smith', image: 'https://i.pinimg.com/736x/1a/e5/12/1ae5123d2738908a040c4c8b3caeb649.jpg' },
-  { id: 3, name: 'Sam Johnson', image: 'https://d1muf25xaso8hp.cloudfront.net/https%3A%2F%2F40e507dd0272b7bb46d376a326e6cb3c.cdn.bubble.io%2Ff1701947977610x597614104972609200%2FThe%2520New%2520Black%2520%252847%2529.jpeg?w=256&h=256&auto=compress&dpr=2.5&fit=max' },
-];
+interface Design {
+  id: string;
+  title?: string;
+  imageUrls: string[];
+  likes: number;
+  dislikes: number;
+}
 
-const SwipeScreen = () => {
-  const [savedCards, setSavedCards] = useState<number[]>([]);
+const SwipeScreen: React.FC = () => {
+  const [designs, setDesigns] = useState<Design[]>([]);
+  const [savedCards, setSavedCards] = useState<string[]>([]);
+  
+  const user = auth().currentUser;
 
-  const savePost = (id: number) => {
-    setSavedCards((prev) => [...prev, id]);
+  const fetchDesigns = async () => {
+    try {
+      const snapshot = await firestore().collection('designs').limit(100).get();
+      const designsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Design, 'id'>),
+      }));
+      setDesigns(designsData);
+    } catch (error) {
+      console.error('Error fetching designs:', error);
+    }
   };
 
-  const isSaved = (id: number) => savedCards.includes(id);
+  const fetchSavedDesigns = async () => {
+    if (user) {
+      const userDoc = await firestore().collection('users').doc(user.uid).get();
+      const savedDesigns = userDoc.data()?.savedDesigns || [];
+      setSavedCards(savedDesigns);
+    }
+  };
+
+  useEffect(() => {
+    fetchDesigns();
+    fetchSavedDesigns();
+  }, []);
+
+  const savePost = useCallback(
+    async (id: string) => {
+      if (user) {
+        try {
+          const userDocRef = firestore().collection('users').doc(user.uid);
+          await userDocRef.update({
+            savedDesigns: firestore.FieldValue.arrayUnion(id),
+          });
+          setSavedCards((prev) => [...prev, id]);
+          console.log(`Design ${id} saved successfully!`);
+        } catch (error) {
+          console.error('Error saving design:', error);
+        }
+      }
+    },
+    [user]
+  );
+
+  const isSaved = useCallback((id: string) => savedCards.includes(id), [savedCards]);
+
+  const handleSwipe = async (id: string, direction: 'left' | 'right') => {
+    try {
+      const designRef = firestore().collection('designs').doc(id);
+      if (direction === 'right') {
+        await designRef.update({
+          likes: firestore.FieldValue.increment(1),
+        });
+        console.log(`Design ${id} liked!`);
+      } else {
+        await designRef.update({
+          dislikes: firestore.FieldValue.increment(1),
+        });
+        console.log(`Design ${id} disliked!`);
+      }
+    } catch (error) {
+      console.error('Error updating likes/dislikes:', error);
+    }
+  };
+
+  const renderCard = useCallback(
+    (card: Design | undefined) => {
+      if (!card) {
+        return (
+          <View style={styles.noMoreCards}>
+            <Text>No More Designs</Text>
+          </View>
+        );
+      }
+
+      return (
+        <View key={card.id} style={styles.card}>
+          <ScrollView contentContainerStyle={styles.cardScrollView}>
+            {card.imageUrls.map((imageUrl, index) => (
+              <RNImage
+                key={`${card.id}-${index}`}
+                source={{ uri: imageUrl }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+          <View style={styles.cardTextContainer}>
+            <Text style={styles.cardName}>{card.title || 'Design'}</Text>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={() => savePost(card.id)}
+              disabled={isSaved(card.id)}
+            >
+              <RNImage
+                source={require('../assets/saved.png')}
+                style={{
+                  width: 24,
+                  height: 24,
+                  tintColor: isSaved(card.id) ? 'green' : 'gray',
+                }}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    },
+    [isSaved, savePost]
+  );
+
+  const memoizedDesigns = useMemo(() => designs, [designs]);
+
+  if (memoizedDesigns.length === 0) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Loading designs...</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Swiper
-        cards={data}
-        renderCard={(card) => {
-          return card ? (
-            <View style={styles.card}>
-              <RNImage source={{ uri: card.image }} style={styles.cardImage} />
-              <View style={styles.cardTextContainer}>
-                <Text style={styles.cardName}>{card.name}</Text>
-
-                {/* Save button */}
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={() => savePost(card.id)}
-                  disabled={isSaved(card.id)}
-                >
-                  <RNImage
-                    source={require('../assets/saved.png')}
-                    style={{
-                      width: 24,
-                      height: 24,
-                      tintColor: isSaved(card.id) ? 'green' : 'gray',
-                    }}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.noMoreCards}>
-              <Text>No More Profiles</Text>
-            </View>
-          );
-        }}
+        cards={memoizedDesigns}
+        renderCard={renderCard}
         backgroundColor={'#f5f5f5'}
         stackSize={3}
         infinite
         containerStyle={styles.swiperContainer}
+        cardVerticalMargin={40}
         verticalSwipe={false}
+        cardIndex={0}
+        keyExtractor={(card: Design) => card.id}
+        onSwipedAll={() => console.log('All cards have been swiped')}
+        onSwipedRight={(cardIndex) => {
+          const swipedCard = memoizedDesigns[cardIndex];
+          handleSwipe(swipedCard.id, 'right');
+        }}
+        onSwipedLeft={(cardIndex) => {
+          const swipedCard = memoizedDesigns[cardIndex];
+          handleSwipe(swipedCard.id, 'left');
+        }}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 10,
   },
   swiperContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -85,19 +188,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
     overflow: 'hidden',
-    position: 'relative',
+  },
+  cardScrollView: {
+    flexGrow: 1,
   },
   cardImage: {
     width: '100%',
-    height: '100%',
+    height: SCREEN_HEIGHT * 0.8,
   },
   cardTextContainer: {
     padding: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

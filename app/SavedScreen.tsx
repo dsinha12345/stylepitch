@@ -1,31 +1,78 @@
-// SavedScreen.tsx
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, Dimensions, Image, RefreshControl, TouchableOpacity } from 'react-native';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+import { useNavigation } from '@react-navigation/native';
 
-const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25; // Adjusted width for better spacing
-const CARD_HEIGHT = Dimensions.get('window').height * 0.4; // Adjust card height for rectangular lengthwise design
+const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
+const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
 
-const data = Array.from({ length: 5 }, (_, i) => ({
-  id: i.toString(),
-  title: `Saved designs ${i + 1}`,
-}));
+interface Design {
+  id: string;
+  title?: string;
+  imageUrls: string[];
+}
 
-const Card = ({ title }: { title: string }) => (
-  <View style={styles.card}>
-    <Text style={styles.cardText}>{title}</Text>
-  </View>
-);
+const Card = ({ id, title, imageUrls }: { id: string; title?: string; imageUrls: string[] }) => {
+  const navigation = useNavigation();
+
+  return (
+    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('CardDetailScreen', { id })}>
+      {imageUrls.length > 0 && (
+        <Image source={{ uri: imageUrls[0] }} style={styles.cardImage} resizeMode="cover" />
+      )}
+      <View style={styles.cardTextContainer}>
+        <Text style={styles.cardText}>{title || 'Untitled Design'}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const SavedScreen = () => {
+  const [savedDesigns, setSavedDesigns] = useState<Design[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const user = auth().currentUser;
+
+  const fetchSavedDesigns = async () => {
+    if (user) {
+      setIsRefreshing(true);
+      try {
+        const userDoc = await firestore().collection('users').doc(user.uid).get();
+        const savedDesignsIds = userDoc.data()?.savedDesigns || [];
+
+        const designsPromises = savedDesignsIds.map(async (id: string) => {
+          const designDoc = await firestore().collection('designs').doc(id).get();
+          return { id: designDoc.id, ...(designDoc.data() as Omit<Design, 'id'>) };
+        });
+
+        const fetchedDesigns = await Promise.all(designsPromises);
+        setSavedDesigns(fetchedDesigns.filter(design => design.title));
+      } catch (error) {
+        console.error('Error fetching saved designs:', error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchSavedDesigns();
+  }, [user]);
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={data}
-        renderItem={({ item }) => <Card title={item.title} />}
+        data={savedDesigns}
+        renderItem={({ item }) => (
+          <Card title={item.title} imageUrls={item.imageUrls} id={item.id} />
+        )}
         keyExtractor={item => item.id}
-        numColumns={2} // Display two cards per row
+        numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={fetchSavedDesigns} />
+        }
       />
     </View>
   );
@@ -38,7 +85,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: 20,
-    paddingHorizontal: 10, // Apply padding here to balance left and right
+    paddingHorizontal: 10,
   },
   card: {
     width: CARD_WIDTH,
@@ -46,18 +93,25 @@ const styles = StyleSheet.create({
     margin: 10,
     borderRadius: 10,
     backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3.84,
-    elevation: 5,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardTextContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 10,
   },
   cardText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
   },
 });
 
