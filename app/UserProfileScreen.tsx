@@ -1,19 +1,20 @@
 // UserProfileScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Image } from 'react-native';
+import { Alert, View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from './types';
+import { RootStackParamList, UserProfileStackParamList } from './types';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { MaterialIcons } from '@expo/vector-icons';
+import CustomHeader from './customheader';
 
 type UserProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   'UserProfile'
 >;
 
-type ScreenNames = keyof RootStackParamList; // Extract screen names from the param list
+type ScreenNames = keyof UserProfileStackParamList; // Extract screen names from the param list
 
 const UserProfileScreen = () => {
   const navigation = useNavigation<UserProfileScreenNavigationProp>();
@@ -55,25 +56,35 @@ const UserProfileScreen = () => {
     );
   }
 
-  const items = [
-    { id: '1', title: 'Profile', screen: 'ProfileScreen' },
-    { id: '2', title: 'Your Designs', screen: 'UserDesigns' },
-    { id: '3', title: 'Rewards', screen: 'Screen3' },
-    { id: '4', title: 'Upload a Design', screen: 'UploadDesignScreen' },
-    { id: '5', title: 'Settings', screen: 'Screen5' },
-  ];
+const items = [
+  { id: '1', title: 'Profile', screen: 'ProfileScreen' },
+  { id: '2', title: 'Your Designs', screen: 'UserDesigns' },
+  { id: '3', title: 'Rewards', screen: 'RewardsScreen' },
+  { id: '4', title: 'Upload a Design', screen: 'UploadDesignScreen' },
+  { id: '5', title: 'Settings', screen: 'SettingsScreen' },
+];
 
-  const handleItemPress = (screen: ScreenNames) => {
-    navigation.navigate(screen); // Type-safe navigation
+const handleItemPress = (screen: keyof UserProfileStackParamList) => {
+  navigation.navigate(screen); // Safely type-check the screen
+};
+
+  const handleLogout = () => {
+    auth().signOut().then(() => {
+      Alert.alert('Logged out', 'You have been logged out successfully.');
+    }).catch(error => {
+      console.error('Logout error:', error);
+      Alert.alert('Logout failed', 'There was an error logging you out.');
+    });
   };
-
   return (
+    <View style={{ flex: 1 }}>
+    <CustomHeader title="Profile" onLogout={handleLogout} />
     <View style={styles.container}>
       <Text style={styles.welcomeText}>
         Welcome, {userData?.firstName} {userData?.lastName}
       </Text>
       <Image
-        source={{ uri: 'https://media.istockphoto.com/id/1300845620/vector/user-icon-flat-isolated-on-white-background-user-symbol-vector-illustration.jpg?s=612x612&w=0&k=20&c=yBeyba0hUkh14_jgv1OKqIH0CCSWU_4ckRkAoy2p73o=' }}
+        source={{ uri: userData?.profilePicture || 'https://media.istockphoto.com/id/1300845620/vector/user-icon-flat-isolated-on-white-background-user-symbol-vector-illustration.jpg?s=612x612&w=0&k=20&c=yBeyba0hUkh14_jgv1OKqIH0CCSWU_4ckRkAoy2p73o=' }}
         style={styles.profilePicture}
       />
       <View style={styles.content}>
@@ -89,6 +100,7 @@ const UserProfileScreen = () => {
           contentContainerStyle={styles.listContent}
         />
       </View>
+    </View>
     </View>
   );
 };

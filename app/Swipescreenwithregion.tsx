@@ -35,7 +35,7 @@ const SwipeScreen: React.FC = () => {
     { label: 'Asia', value: 'asia' },
     // Add more regions as needed
   ];
-  
+
   const fetchDesigns = async () => {
     try {
       const snapshot = await firestore().collection('designs').orderBy("createdAt","desc").limit(100).get();
@@ -51,6 +51,47 @@ const SwipeScreen: React.FC = () => {
       console.error('Error fetching designs:', error);
     }
   };
+  const loadDesignsByRegion = async (selectedRegion: string) => {
+    try {
+      const regionDoc = await firestore()
+        .collection('regions')
+        .doc(selectedRegion)
+        .collection("designs")
+        .orderBy("createdAt", "desc")
+        .get();
+  
+      // Extract design IDs from region documents
+      const designIds = regionDoc.docs.map(doc => doc.data().designId);
+  
+      // Fetch design details from the Designs collection
+      const designsPromises = designIds.map(async (designId) => {
+        const designDoc = await firestore()
+          .collection('Designs')
+          .doc(designId)
+          .get();
+  
+        if (designDoc.exists) {
+          const data = designDoc.data();
+          return {
+            id: designDoc.id, // Document ID from Designs collection
+            ...(data as Omit<Design, 'id'>),// Convert Firestore Timestamp to JavaScript Date
+          };
+        }
+        return null; // Return null if design does not exist
+      });
+  
+      // Wait for all design fetches to complete
+      const designsData = await Promise.all(designsPromises);
+      
+      // Filter out any null values (if any designs did not exist)
+      setDesigns(designsData.filter(design => design !== null));
+  
+    } catch (error) {
+      console.error('Error fetching designs:', error);
+    }
+  };
+  
+  
   const fetchSavedDesigns = async () => {
     if (user) {
       try {
@@ -64,7 +105,7 @@ const SwipeScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchDesigns();
+    loadDesignsByRegion("Global");
     fetchSavedDesigns();
   }, []);
 
@@ -276,6 +317,14 @@ const SwipeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.pickerContainer}>
+        <Text style={styles.label}>Select Region:</Text>
+        <RNPickerSelect
+          onValueChange={(value) => setRegion(value)}
+          items={regions}
+          placeholder={{ label: "Select a region", value: null }}
+        />
+      </View>
       <Swiper
         ref={swiperRef}
         cards={memoizedDesigns}
@@ -341,6 +390,13 @@ const styles = StyleSheet.create({
   },
   swiperContainer: {
     flex: 1,
+  },
+  pickerContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 5,
   },
   loadingContainer: {
     flex: 1,

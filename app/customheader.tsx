@@ -1,8 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image as RNImage, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image as RNImage, TouchableOpacity, ImageBackground } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 const CustomHeader = ({ title, onLogout }: { title: string; onLogout?: () => void }) => (
+  <ImageBackground 
+    source={require('../assets/header_background.png')} 
+    style={styles.imagebackground}
+    resizeMode="cover"
+  >
   <View style={styles.headerContainer}>
     {/* Left section: Logo and title */}
     <View style={styles.leftSection}>
@@ -16,9 +21,14 @@ const CustomHeader = ({ title, onLogout }: { title: string; onLogout?: () => voi
       </TouchableOpacity>
     )}
   </View>
+  </ImageBackground>
 );
 
 const styles = StyleSheet.create({
+  imagebackground : {
+    width : "100%",
+    height : 60,
+  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -26,9 +36,6 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 10,
     paddingHorizontal: 15,
-    backgroundColor: '#f8f9f9',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   leftSection: {
     flexDirection: 'row', // Ensures logo and title are in a row

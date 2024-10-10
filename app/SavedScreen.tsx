@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Dimensions, Image, RefreshControl, TouchableOpacity } from 'react-native';
+import { Alert, View, Text, FlatList, StyleSheet, Dimensions, Image, RefreshControl, TouchableOpacity } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types'; // Adjust the path as necessary
+import CustomHeader from './customheader';
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -62,8 +63,17 @@ const SavedScreen = () => {
   const navigateToCardDetail = (id: string) => {
     navigation.navigate('CardDetailScreen', { id }); // Navigate to CardDetailScreen with the design ID
   };
-
+  const handleLogout = () => {
+    auth().signOut().then(() => {
+      Alert.alert('Logged out', 'You have been logged out successfully.');
+    }).catch(error => {
+      console.error('Logout error:', error);
+      Alert.alert('Logout failed', 'There was an error logging you out.');
+    });
+  };
   return (
+    <View style={{ flex: 1 }}>
+    <CustomHeader title="Saved" onLogout={handleLogout} />
     <View style={styles.container}>
       <FlatList
         data={savedDesigns}
@@ -78,6 +88,7 @@ const SavedScreen = () => {
           <RefreshControl refreshing={isRefreshing} onRefresh={fetchSavedDesigns} />
         }
       />
+      </View>
     </View>
   );
 };

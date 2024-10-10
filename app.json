@@ -4,7 +4,7 @@
     "slug": "stylepitch",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/company_logo_only.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
@@ -39,7 +39,8 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true
