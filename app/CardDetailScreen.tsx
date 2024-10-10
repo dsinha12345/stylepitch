@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Dimensions, ScrollView, Image as RNImage, Touch
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import CustomHeader from './customheader'; // Adjust the path as necessary
+import { RouteProp } from '@react-navigation/native';
+import { UserProfileStackParamList } from './types'; // Adjust the path as necessary
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -15,10 +17,12 @@ interface Design {
   dislikes: number;
 }
 
-const CardDetailScreen: React.FC<{ route: { params: { id: string } } }> = ({ route }) => {
-  if (!route.params) return null;
+type CardDetailScreenProps = {
+  route: RouteProp<UserProfileStackParamList, 'CardDetailScreen'>;
+};
 
-  const { id } = route.params;
+const CardDetailScreen: React.FC<CardDetailScreenProps> = ({ route }) => {
+  const { id } = route.params; // No need to check for route.params because types ensure it's present
   const [design, setDesign] = useState<Design | null>(null);
   const [loading, setLoading] = useState(true);
   

@@ -5,7 +5,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types';
-import { GoogleSignin, GoogleSigninButton,  SignInResponse } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, GoogleSigninButton, SignInSuccessResponse } from '@react-native-google-signin/google-signin';
 
 
 const logo = require('../assets/company_logo_only.png'); // Adjust the path based on your project structure
@@ -48,8 +48,7 @@ const LoginScreen = () => {
     auth()
       .signInWithEmailAndPassword(email, password)
       .then(() => {
-        Alert.alert('Login Success', `Welcome back, ${email}`);
-        navigation.navigate('Main');
+        navigation.navigate('MainScreen');
       })
       .catch(error => {
         if (error.code === 'auth/user-not-found') {
@@ -83,8 +82,8 @@ const LoginScreen = () => {
             email: email,
           })
           .then(() => {
-            Alert.alert('Registration Success', `Account created for ${email}`);
-            navigation.navigate('Main');
+            Alert.alert('Registration Success', `Account created for ${firstName}`);
+            navigation.navigate('MainScreen');
           })
           .catch((error) => {
             Alert.alert('Error', 'Failed to save user data. Please try again.');
@@ -106,29 +105,38 @@ const LoginScreen = () => {
   const handleGoogleSignIn = async () => {
     try {
       await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      // Check if response is a SignInSuccessResponse
+      if (response && response.data && response.data.idToken) {
+        const idToken = response.data.idToken; // Type assertion
+
+        const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+        const userCredential = await auth().signInWithCredential(googleCredential);
   
-      // Cast the result to SignInResponse type
-      const { idToken } = await GoogleSignin.signIn() as SignInResponse;
+        // Handle new user logic
+        if (userCredential.additionalUserInfo?.isNewUser) {
+          const { givenName, familyName, email, photo } = response.data.user; // Extract user data
   
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-      const userCredential = await auth().signInWithCredential(googleCredential);
+          await firestore().collection('users').doc(userCredential.user.uid).set({
+            firstName: givenName || '',
+            lastName: familyName || '',
+            email: email,
+            profilePicture: photo || '', // Save the profile picture URL
+          });
+        }
   
-      // Your existing logic to handle new user
-      if (userCredential.additionalUserInfo?.isNewUser) {
-        await firestore().collection('users').doc(userCredential.user.uid).set({
-          firstName: userCredential.user.displayName?.split(' ')[0] || '',
-          lastName: userCredential.user.displayName?.split(' ').slice(1).join(' ') || '',
-          email: userCredential.user.email,
-        });
+        Alert.alert('Login Success', `Welcome, ${userCredential.user.displayName}`);
+        navigation.navigate('MainScreen');
+      } else {
+        Alert.alert('Error', 'Google Sign-In was cancelled. Please try again.');
       }
-  
-      Alert.alert('Login Success', `Welcome, ${userCredential.user.displayName}`);
-      navigation.navigate('Main');
-    } catch (error: any) {
-      console.error(error);
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
       Alert.alert('Error', 'Google Sign-In failed. Please try again.');
     }
   };
+  
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Image source={logo} style={styles.logo} resizeMode="contain" />
@@ -173,12 +181,14 @@ const LoginScreen = () => {
         <Text style={styles.submitButtonText}>{isLogin ? 'Login' : 'Register'}</Text>
       </TouchableOpacity>
 
-      <GoogleSigninButton
-        style={styles.googleButton}
-        size={GoogleSigninButton.Size.Wide}
-        color={GoogleSigninButton.Color.Dark}
-        onPress={handleGoogleSignIn}
-      />
+      <View style={styles.googleButtonContainer}>
+  <GoogleSigninButton
+    style={styles.googleButton}
+    size={GoogleSigninButton.Size.Icon} // You can adjust this as needed
+    color={GoogleSigninButton.Color.Light}
+    onPress={handleGoogleSignIn}
+  />
+</View>
 
       <TouchableOpacity onPress={toggleForm}>
         <Text style={styles.toggleText}>
@@ -197,10 +207,18 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor : "#f8f9f9"
   },
-  googleButton: {
-    width: 192,
-    height: 48,
+  googleButtonContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    // Ensure the button doesn't overflow the container
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 10,
+  },
+  googleButton: {
+    width: '100%', // Use full width of the container
+    height: '100%', // Use full height of the container
   },
   header: {
     fontSize: 28,
