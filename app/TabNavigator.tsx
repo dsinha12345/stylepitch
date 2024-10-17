@@ -2,7 +2,7 @@ import React from 'react';
 import { Image as RNImage } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import LeaderBoardScreen from './LeaderBoard';
-import SwipeScreen from './swipescreen';
+import SwipeScreen from './Swipescreenwithregion';
 import CustomHeader from './customheader';
 import { UserProfileStack } from './UserProfileStack';
 import { SavedScreenStack } from './SavedScreenStack';

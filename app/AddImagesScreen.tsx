@@ -1,9 +1,12 @@
+// AddImagesScreen.tsx
 import React from 'react';
-import { Image, Dimensions, View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { Image, Dimensions, View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
 import { AddImagesScreenProps } from './types';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './types';
+import { MaterialIcons } from '@expo/vector-icons';
+import CustomHeader from './customheader';
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -14,7 +17,7 @@ type AddImagesScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Ad
 const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUrls }) => {
   const navigation = useNavigation<AddImagesScreenNavigationProp>();
   const route = useRoute();
-  const { designTitle } = route.params as { designTitle: string };  // Retrieve designTitle from the route params
+  const { designTitle } = route.params as { designTitle: string };
 
   const handleAddUrl = () => {
     setImageUrls([...imageUrls, '']);
@@ -61,9 +64,20 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
     </View>
   );
 
+  const handleNextPress = () => {
+    // Check if there's at least one non-empty image URL
+    if (imageUrls.some(url => url.trim() !== '')) {
+      navigation.navigate('SelectRegion', { designTitle, imageUrls });
+    } else {
+      Alert.alert('No Image URLs', 'Please enter at least one image URL before proceeding.');
+    }
+  };
+
   return (
+    <View style = {{flex:1}}>
+      <CustomHeader title = "Add Images"/>
     <View style={styles.container}>
-      <Text style={styles.title}>Add Image URLs</Text>
+      <Text style={styles.title}>Images</Text>
       
       <FlatList
         data={imageUrls}
@@ -78,15 +92,14 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
   
       <TouchableOpacity
         style={styles.nextButton}
-        // Pass both designTitle and imageUrls to the next screen
-        onPress={() => navigation.navigate('SelectRegion', { designTitle, imageUrls })}
+        onPress={handleNextPress} // Use the new handleNextPress function
       >
-        <Text style={styles.buttonText}>Next</Text>
+        <MaterialIcons name="arrow-forward" size={24} color="#fb5a03" />
       </TouchableOpacity>
+    </View>
     </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -109,7 +122,7 @@ const styles = StyleSheet.create({
   },
   textInputWrapper: {
     width: '100%',
-    borderColor: '#007BFF',
+    borderColor: '#fb5a03',
     borderWidth: 1,
     borderRadius: 8,
     backgroundColor: '#fff',
@@ -143,18 +156,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addButton: {
-    backgroundColor: '#007BFF',
+    backgroundColor: '#fb5a03',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
   },
   nextButton: {
-    backgroundColor: '#007BFF',
-    padding: 15,
+    borderColor: '#fb5a03',
+    borderWidth: 1,
     borderRadius: 8,
+    padding: 15,
     alignItems: 'center',
     marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#fff',
@@ -163,6 +179,8 @@ const styles = StyleSheet.create({
 });
 
 export default AddImagesScreen;
+
+
 /*
 
 

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "256007802506-e5pfloppmmg9of3mh1nkh009f562vldd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.stylepitch.signin",
+            "certificate_hash": "cce2c17cb25a1a35d9040cf1ba883343e0aee2f4"
+          }
+        },
+        {
           "client_id": "256007802506-o828qjia2bll4icait1sfqd1mqpbdkda.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
