@@ -5,6 +5,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 import LoginScreen from './LoginScreen';
 import TabNavigator from './TabNavigator';  // Assume we've moved TabNavigator to its own file
+import RegionSelectionScreen from './RegionSelectionScreen'; // Import the new screen
+import { RegionProvider, useRegion } from './RegionContext';
 
 const Stack = createStackNavigator();
 
@@ -21,10 +23,13 @@ const App = () => {
     return unsubscribe;
   }, []);
 
+  const { setRegion } = useRegion(); 
+
   const handleLogout = () => {
     auth()
       .signOut()
       .then(() => {
+        setRegion('');
         Alert.alert('Logged out', 'You have been logged out successfully.');
       })
       .catch(error => {
@@ -36,14 +41,22 @@ const App = () => {
   if (initializing) return <View style={styles.screen}><Text>Loading...</Text></View>;
 
   return (
+    <RegionProvider>
       <Stack.Navigator>
         {user ? (
+        <>
+          <Stack.Screen
+          name="RegionSelection"
+          component={RegionSelectionScreen}
+          options={{ headerShown: false }}
+        />
           <Stack.Screen
             name="MainScreen"
             options={{ headerShown: false }}
           >
             {(props) => <TabNavigator {...props} handleLogout={handleLogout} />}
           </Stack.Screen>
+          </>
         ) : (
           <Stack.Screen
             name="Login"
@@ -52,6 +65,7 @@ const App = () => {
           />
         )}
       </Stack.Navigator>
+      </RegionProvider>
   );
 };
 

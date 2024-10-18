@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { TextInput, Alert, View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView, Modal } from 'react-native';
+import { RefreshControl,TextInput, Alert, View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView, Modal } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import RNPickerSelect from 'react-native-picker-select';
+import { useRegion } from './RegionContext'; // Import the context hook
+
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -24,17 +26,10 @@ const SwipeScreen: React.FC = () => {
   const [customMessage, setCustomMessage] = useState("Hi, I'm interested in your design!");
   const [isMessageModalVisible, setIsMessageModalVisible] = useState(false);
   const [selectedDesignerId, setSelectedDesignerId] = useState<string | null>(null);
-  const [region, setRegion] = useState<string | null>(null);
+  const { region } = useRegion();
+
   
   const user = auth().currentUser;
-
-
-  const regions = [
-    { label: 'North America', value: 'north_america' },
-    { label: 'Europe', value: 'europe' },
-    { label: 'Asia', value: 'asia' },
-    // Add more regions as needed
-  ];
 
   const fetchDesigns = async () => {
     try {
@@ -68,6 +63,7 @@ const SwipeScreen: React.FC = () => {
           ...(data as Omit<Design, 'id'>)
         };
       });
+      console.log(selectedRegion);
       setDesigns(designsData);
   
     } catch (error) {
@@ -89,9 +85,9 @@ const SwipeScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    loadDesignsByRegion("Australia");
+    loadDesignsByRegion(region);
     fetchSavedDesigns();
-  }, []);
+  }, [region]);
 
   const savePost = useCallback(
     async (id: string) => {
@@ -313,21 +309,12 @@ const SwipeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.pickerContainer}>
-        <Text style={styles.label}>Select Region:</Text>
-        <RNPickerSelect
-          onValueChange={(value) => setRegion(value)}
-          items={regions}
-          placeholder={{ label: "Select a region", value: null }}
-        />
-      </View>
       <Swiper
         ref={swiperRef}
         cards={memoizedDesigns}
         renderCard={renderCard}
         backgroundColor={'#f5f5f5'}
         stackSize={3}
-        infinite
         containerStyle={styles.swiperContainer}
         cardVerticalMargin={40}
         verticalSwipe={false}
@@ -336,11 +323,11 @@ const SwipeScreen: React.FC = () => {
         onSwipedAll={() => console.log('All cards have been swiped')}
         onSwipedRight={(cardIndex) => {
           const swipedCard = memoizedDesigns[cardIndex];
-          handleSwipe(swipedCard.id, 'right');
+          handleSwipe(swipedCard.id, 'right',region);
         }}
         onSwipedLeft={(cardIndex) => {
           const swipedCard = memoizedDesigns[cardIndex];
-          handleSwipe(swipedCard.id, 'left');
+          handleSwipe(swipedCard.id, 'left',region);
         }}
       />
       <Modal
