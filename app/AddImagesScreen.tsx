@@ -5,8 +5,12 @@ import { AddImagesScreenProps } from './types';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './types';
+<<<<<<< HEAD
+import Icon from 'react-native-vector-icons/FontAwesome';
+=======
 import { MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from './customheader';
+>>>>>>> ef6d4e43536cf764dba2e35aea48c55737c84e8c
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -21,6 +25,11 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
 
   const handleAddUrl = () => {
     setImageUrls([...imageUrls, '']);
+  };
+
+  const handleDeleteUrl = (index: number) => {
+    const newUrls = imageUrls.filter((_, i) => i !== index);
+    setImageUrls(newUrls);
   };
 
   const handleUrlChange = (text: string, index: number) => {
@@ -57,6 +66,9 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
           onChangeText={(text) => handleUrlChange(text, index)}
           multiline
         />
+        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteUrl(index)}>
+          <Icon name="trash" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
       <View style={styles.cardContainer}>
         {item.trim() !== '' && renderImageCard(item)}
@@ -122,7 +134,12 @@ const styles = StyleSheet.create({
   },
   textInputWrapper: {
     width: '100%',
+<<<<<<< HEAD
+    borderColor: '#007BFF',
+    flexDirection: 'row',
+=======
     borderColor: '#fb5a03',
+>>>>>>> ef6d4e43536cf764dba2e35aea48c55737c84e8c
     borderWidth: 1,
     borderRadius: 8,
     backgroundColor: '#fff',
@@ -131,6 +148,19 @@ const styles = StyleSheet.create({
   input: {
     padding: 10,
     width: '100%',
+    flex: 1, 
+  },
+  deleteButton: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FF0000',
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   cardContainer: {
     alignItems: 'center',
