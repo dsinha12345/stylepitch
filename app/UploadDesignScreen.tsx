@@ -20,36 +20,45 @@ const UploadDesignScreen: React.FC = () => {
   };
 
   return (
-      <Stack.Navigator initialRouteName="DesignTitle">
-        <Stack.Screen name="DesignTitle">
-          {(props) => (
-            <DesignTitleScreen
-              {...props}
-              designTitle={designTitle}
-              setDesignTitle={setDesignTitle}
-            />
-          )}
-        </Stack.Screen>
-        <Stack.Screen name="AddImages">
-          {(props) => (
-            <AddImagesScreen
-              {...props}
-              imageUrls={imageUrls}
-              setImageUrls={setImageUrls}
-            />
-          )}
-        </Stack.Screen>
-        <Stack.Screen name="SelectRegion">
-          {(props) => (
-            <SelectRegionScreen
-              {...props}
-              selectedRegions={selectedRegions}
-              setSelectedRegions={setSelectedRegions}
-              uploadDesign={uploadDesign}
-            />
-          )}
-        </Stack.Screen>
-      </Stack.Navigator>
+    <Stack.Navigator initialRouteName="DesignTitle">
+      <Stack.Screen 
+        name="DesignTitle" 
+        options={{ headerShown: false }}  // Correctly place headerShown here
+      >
+        {(props) => (
+          <DesignTitleScreen
+            {...props}
+            designTitle={designTitle}
+            setDesignTitle={setDesignTitle}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen 
+        name="AddImages" 
+        options={{ headerShown: false }}  // You can also hide the header for this screen if needed
+      >
+        {(props) => (
+          <AddImagesScreen
+            {...props}
+            imageUrls={imageUrls}
+            setImageUrls={setImageUrls}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen 
+        name="SelectRegion" 
+        options={{ headerShown: false }}  // And for this screen as well if needed
+      >
+        {(props) => (
+          <SelectRegionScreen
+            {...props}
+            selectedRegions={selectedRegions}
+            setSelectedRegions={setSelectedRegions}
+            uploadDesign={uploadDesign}
+          />
+        )}
+      </Stack.Screen>
+    </Stack.Navigator>
   );
 };
 

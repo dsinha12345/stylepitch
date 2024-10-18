@@ -61,30 +61,14 @@ const SwipeScreen: React.FC = () => {
         .get();
   
       // Extract design IDs from region documents
-      const designIds = regionDoc.docs.map(doc => doc.data().designId);
-  
-      // Fetch design details from the Designs collection
-      const designsPromises = designIds.map(async (designId) => {
-        const designDoc = await firestore()
-          .collection('Designs')
-          .doc(designId)
-          .get();
-  
-        if (designDoc.exists) {
-          const data = designDoc.data();
-          return {
-            id: designDoc.id, // Document ID from Designs collection
-            ...(data as Omit<Design, 'id'>),// Convert Firestore Timestamp to JavaScript Date
-          };
-        }
-        return null; // Return null if design does not exist
+      const designsData = regionDoc.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...(data as Omit<Design, 'id'>)
+        };
       });
-  
-      // Wait for all design fetches to complete
-      const designsData = await Promise.all(designsPromises);
-      
-      // Filter out any null values (if any designs did not exist)
-      setDesigns(designsData.filter(design => design !== null));
+      setDesigns(designsData);
   
     } catch (error) {
       console.error('Error fetching designs:', error);
@@ -105,7 +89,7 @@ const SwipeScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    loadDesignsByRegion("Global");
+    loadDesignsByRegion("Australia");
     fetchSavedDesigns();
   }, []);
 
@@ -201,7 +185,7 @@ const SwipeScreen: React.FC = () => {
     }
   }, [user, customMessage, selectedDesignerId]);
 
-  const handleSwipe = async (id: string, direction: 'left' | 'right') => {
+  const handleSwipe = async (id: string, direction: 'left' | 'right', selectedRegion:string) => {
     try {
       const designRef = firestore().collection('designs').doc(id);
       if (direction === 'right') {
@@ -211,6 +195,18 @@ const SwipeScreen: React.FC = () => {
         console.log(`Design ${id} liked!`);
       } else {
         await designRef.update({
+          dislikes: firestore.FieldValue.increment(1),
+        });
+        console.log(`Design ${id} disliked!`);
+      }
+      const designRef_region = firestore().collection('regions').doc(selectedRegion).collection('designs').doc(id);
+      if (direction === 'right') {
+        await designRef_region.update({
+          likes: firestore.FieldValue.increment(1),
+        });
+        console.log(`Design ${id} liked!`);
+      } else {
+        await designRef_region.update({
           dislikes: firestore.FieldValue.increment(1),
         });
         console.log(`Design ${id} disliked!`);
