@@ -20,7 +20,7 @@ const SelectRegionScreen: React.FC<SelectRegionProps> = ({ selectedRegions, setS
   // Extract designTitle and imageUrls from route params
   const { designTitle, imageUrls } = route.params;
 
-  const regions = ['Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Global', 'Gulf'];
+  const regions = ['Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Gulf'];
 
   const toggleRegion = (region: string) => {
     setSelectedRegions(

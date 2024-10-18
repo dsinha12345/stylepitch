@@ -5,12 +5,11 @@ import { AddImagesScreenProps } from './types';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './types';
-<<<<<<< HEAD
 import Icon from 'react-native-vector-icons/FontAwesome';
-=======
+
 import { MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from './customheader';
->>>>>>> ef6d4e43536cf764dba2e35aea48c55737c84e8c
+
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -134,12 +133,8 @@ const styles = StyleSheet.create({
   },
   textInputWrapper: {
     width: '100%',
-<<<<<<< HEAD
-    borderColor: '#007BFF',
-    flexDirection: 'row',
-=======
     borderColor: '#fb5a03',
->>>>>>> ef6d4e43536cf764dba2e35aea48c55737c84e8c
+    flexDirection: 'row', 
     borderWidth: 1,
     borderRadius: 8,
     backgroundColor: '#fff',

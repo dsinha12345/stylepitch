@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import DesignTitleScreen from './DesignTitleScreen';
 import AddImagesScreen from './AddImagesScreen';
-import SelectRegionScreen from './SelectRegionScreen';
+import SelectRegionScreen from './SelectRegionScreenUpload';
 import { RootStackParamList } from './types';
 
 // Create a typed stack navigator
