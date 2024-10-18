@@ -4,6 +4,7 @@ import { AddImagesScreenProps } from './types';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './types';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -18,6 +19,11 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
 
   const handleAddUrl = () => {
     setImageUrls([...imageUrls, '']);
+  };
+
+  const handleDeleteUrl = (index: number) => {
+    const newUrls = imageUrls.filter((_, i) => i !== index);
+    setImageUrls(newUrls);
   };
 
   const handleUrlChange = (text: string, index: number) => {
@@ -54,6 +60,9 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
           onChangeText={(text) => handleUrlChange(text, index)}
           multiline
         />
+        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteUrl(index)}>
+          <Icon name="trash" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
       <View style={styles.cardContainer}>
         {item.trim() !== '' && renderImageCard(item)}
@@ -110,6 +119,7 @@ const styles = StyleSheet.create({
   textInputWrapper: {
     width: '100%',
     borderColor: '#007BFF',
+    flexDirection: 'row',
     borderWidth: 1,
     borderRadius: 8,
     backgroundColor: '#fff',
@@ -118,6 +128,19 @@ const styles = StyleSheet.create({
   input: {
     padding: 10,
     width: '100%',
+    flex: 1, 
+  },
+  deleteButton: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FF0000',
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   cardContainer: {
     alignItems: 'center',
