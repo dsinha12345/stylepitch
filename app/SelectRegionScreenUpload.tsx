@@ -44,12 +44,13 @@ const SelectRegionScreen: React.FC<SelectRegionProps> = ({ selectedRegions, setS
       const designId = Date.now().toString();
       const designRef = firestore().collection('designs').doc(designId);
 
+      const regionsToUpload = [...selectedRegions, 'Global'];
       // Create the design document
       batch.set(designRef, {
         userId: currentUser.uid,
         title: designTitle,
         imageUrls: imageUrls,
-        regions: selectedRegions,
+        regions: regionsToUpload,
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
 
@@ -58,11 +59,24 @@ const SelectRegionScreen: React.FC<SelectRegionProps> = ({ selectedRegions, setS
         uploadedDesigns: firestore.FieldValue.arrayUnion(designId),
       });
 
+      // Add the design to the global region
+      const globalRegionRef = firestore().collection('regions').doc('Global');
+      const globalDesignsCollectionRef = globalRegionRef.collection('designs');
+      const designData = {
+        designId,
+        title: designTitle,
+        imageUrls,
+        userId: currentUser.uid,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      };
+
+      batch.set(globalDesignsCollectionRef.doc(designId), designData);
+
+
       // Update regions collection with all design information
       selectedRegions.forEach((region) => {
         const regionRef = firestore().collection('regions').doc(region);
         const designsCollectionRef = regionRef.collection('designs');
-
         const designData = {
           designId,
           title: designTitle,
@@ -70,7 +84,6 @@ const SelectRegionScreen: React.FC<SelectRegionProps> = ({ selectedRegions, setS
           userId: currentUser.uid,
           createdAt: firestore.FieldValue.serverTimestamp(),
         };
-
         batch.set(designsCollectionRef.doc(designId), designData);
       });
 
