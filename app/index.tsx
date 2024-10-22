@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Alert, StyleSheet } from 'react-native';
+import { View, Text, Alert, StyleSheet, Image } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
@@ -38,8 +38,14 @@ const App = () => {
       });
   };
 
-  if (initializing) return <View style={styles.screen}><Text>Loading...</Text></View>;
-
+  if (initializing) {
+    return (
+      <View style={styles.loadingScreen}>
+        <Image source={require('../assets/company_logo_only.png')} style={styles.logo} />
+      </View>
+    );
+  }
+  
   return (
     <RegionProvider>
       <Stack.Navigator>
@@ -74,6 +80,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff', // You can adjust the background color
+  },
+  logo: {
+    width: 150, // Adjust size as needed
+    height: 150, // Adjust size as needed
+    resizeMode: 'contain',
   },
 });
 

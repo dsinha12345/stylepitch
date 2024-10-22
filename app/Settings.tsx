@@ -15,7 +15,7 @@ const SettingsScreen = () => {
   const settingsOptions = [{ id: '1', name: 'Region' }];
 
   // List of regions for the modal
-  const regions = ['Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Global', 'Gulf'];
+  const regions = ["Global",'Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Gulf'];
 
   const handleOptionPress = (option: string) => {
     if (option === 'Region') {

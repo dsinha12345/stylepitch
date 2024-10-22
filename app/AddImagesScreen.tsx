@@ -76,11 +76,17 @@ const AddImagesScreen: React.FC<AddImagesScreenProps> = ({ imageUrls, setImageUr
   );
 
   const handleNextPress = () => {
+    // Remove empty URLs before proceeding
+    const filteredUrls = imageUrls.filter((url) => url.trim() !== '');
+    
+    // Update the state to reflect only the non-empty URLs
+    setImageUrls(filteredUrls);
+  
     // Check if there's at least one non-empty image URL
-    if (imageUrls.some(url => url.trim() !== '')) {
-      navigation.navigate('SelectRegion', { designTitle, imageUrls });
+    if (filteredUrls.length > 0) {
+      navigation.navigate('SelectRegion', { designTitle, imageUrls: filteredUrls });
     } else {
-      Alert.alert('No Image URLs', 'Please enter at least one image URL before proceeding.');
+      Alert.alert('No Image URLs', 'Please enter at least one valid image URL before proceeding.');
     }
   };
 

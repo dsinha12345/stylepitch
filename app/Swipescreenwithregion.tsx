@@ -188,25 +188,42 @@ const SwipeScreen: React.FC = () => {
         await designRef.update({
           likes: firestore.FieldValue.increment(1),
         });
-        console.log(`Design ${id} liked!`);
       } else {
         await designRef.update({
           dislikes: firestore.FieldValue.increment(1),
         });
-        console.log(`Design ${id} disliked!`);
       }
-      const designRef_region = firestore().collection('regions').doc(selectedRegion).collection('designs').doc(id);
+      if (selectedRegion !== "Global"){
+        const designRef_region = firestore().collection('regions').doc(selectedRegion).collection('designs').doc(id);
+        const global_region = firestore().collection('regions').doc("Global").collection('designs').doc(id);
+          if (direction === 'right') {
+            await designRef_region.update({
+              likes: firestore.FieldValue.increment(1),
+            });
+            await global_region.update({
+              likes: firestore.FieldValue.increment(1),
+            });
+          } else {
+            await designRef_region.update({
+              dislikes: firestore.FieldValue.increment(1),
+            });
+            await global_region.update({
+              dislikes: firestore.FieldValue.increment(1),
+            });
+          }
+      } else {
+        const designRef_region = firestore().collection('regions').doc(selectedRegion).collection('designs').doc(id);
       if (direction === 'right') {
         await designRef_region.update({
           likes: firestore.FieldValue.increment(1),
         });
-        console.log(`Design ${id} liked!`);
       } else {
         await designRef_region.update({
           dislikes: firestore.FieldValue.increment(1),
         });
-        console.log(`Design ${id} disliked!`);
       }
+      }
+      
       // Update the local state to reflect the change
       setDesigns((prevDesigns) =>
         prevDesigns.map((design) =>
