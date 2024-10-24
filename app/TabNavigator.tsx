@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image as RNImage } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import LeaderBoardScreen from './LeaderBoard';
+import { LeaderBoardScreenStack } from './LeaderBoardScreenStack';
 import SwipeScreen from './Swipescreenwithregion';
 import CustomHeader from './customheader';
 import { UserProfileStack } from './UserProfileStack';
@@ -25,7 +25,7 @@ const TabNavigator: React.FC<TabNavigatorProps> = ({ handleLogout }) => (
   >
     <Tab.Screen
       name="LeaderBoard"
-      component={LeaderBoardScreen}
+      component={LeaderBoardScreenStack}
       options={{
         tabBarIcon: () => (
           <RNImage
@@ -34,6 +34,7 @@ const TabNavigator: React.FC<TabNavigatorProps> = ({ handleLogout }) => (
           />
         ),
         tabBarLabel: "",
+        headerShown: false
       }}
     />
     <Tab.Screen

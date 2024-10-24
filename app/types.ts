@@ -10,7 +10,7 @@ export type RootStackParamList = {
   UserDesigns: undefined;
   UploadDesignScreen: undefined;
   CardDetailScreen: { id: string }; // Expecting an id as param for CardDetailScreen
-  LeaderBoard: undefined; 
+  LeaderBoardScreen: undefined; 
   SavedScreen: undefined;
   ChatScreen: { chatId: string };
   MessagesScreen : undefined;
