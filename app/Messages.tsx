@@ -1,17 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
+import { Alert, ActivityIndicator, View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
-import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native'; // Add useFocusEffect
+import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { RootStackParamList } from './types';
 import CustomHeader from './customheader';
-import { RootStackParamList } from './types'; // Import the RootStackParamList
+import { format } from 'date-fns';
 
 interface Chat {
   chatId: string;
   designerId: string;
   firstName: string;
   lastName: string;
+  lastMessageTime: number;
+  lastMessage: string;
 }
 
 const MessagesScreen = () => {
@@ -39,15 +42,25 @@ const MessagesScreen = () => {
             const designerDoc = await firestore().collection('users').doc(designerId).get();
             const designerData = designerDoc.data();
             
+            // Get the last message time from the messages subcollection
+            const messagesQuery = await firestore().collection('chats').doc(chatId).collection('messages').orderBy('createdAt', 'desc').limit(1).get();
+            const lastMessage = messagesQuery.docs[0];
+            const lastMessageData = lastMessage?.data()?.text;
+            const lastMessageTime = lastMessage?.data()?.createdAt?.toMillis() || 0;
+            
             return {
               chatId,
               designerId,
               firstName: designerData?.firstName || 'Unknown',
               lastName: designerData?.lastName || 'Unknown',
+              lastMessage: lastMessageData,
+              lastMessageTime,
             };
           })
         );
 
+        // Sort the chats based on the last message time in descending order
+        chatList.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
         setChats(chatList);
         setFilteredChats(chatList);
       }
@@ -58,7 +71,6 @@ const MessagesScreen = () => {
     }
   };
 
-  // Refresh the chat list every time the screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchChats();
@@ -76,6 +88,28 @@ const MessagesScreen = () => {
     navigation.navigate('ChatScreen', { chatId });
   };
 
+  const formatTime = (timestamp: number) => {
+    const now = new Date();
+    const messageDate = new Date(timestamp);
+  
+    // If the message is from today, show time only (e.g., "12:45 PM")
+    if (
+      messageDate.getDate() === now.getDate() &&
+      messageDate.getMonth() === now.getMonth() &&
+      messageDate.getFullYear() === now.getFullYear()
+    ) {
+      return format(messageDate, 'hh:mm a');
+    }
+  
+    // If from this year, show month and day (e.g., "Oct 15")
+    if (messageDate.getFullYear() === now.getFullYear()) {
+      return format(messageDate, 'MMM dd');
+    }
+  
+    // Otherwise, show full date (e.g., "Oct 15, 2023")
+    return format(messageDate, 'MMM dd, yyyy');
+  };
+
   const renderChatItem = ({ item }: { item: Chat }) => (
     <TouchableOpacity style={styles.chatItem} onPress={() => navigateToChat(item.chatId)}>
       <View style={styles.chatContent}>
@@ -83,40 +117,55 @@ const MessagesScreen = () => {
           <Text style={styles.avatarText}>{item.firstName[0]}{item.lastName[0]}</Text>
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.chatText}>
-            <Text style={styles.boldText}>{item.firstName} {item.lastName}</Text>
+          <Text style={styles.boldText}>
+            {item.firstName} {item.lastName}
           </Text>
+          <View style={styles.messageRow}>
+            <Text style={styles.lastMessage} numberOfLines={1} ellipsizeMode="tail">
+              {item.lastMessage}
+            </Text>
+            <Text style={styles.messageTime}>
+              {formatTime(item.lastMessageTime)}
+            </Text>
+          </View>
         </View>
         <View style={styles.arrowContainer}>
-        <MaterialIcons name="arrow-forward" size={24} color="#fb5a03" />
+          <MaterialIcons name="arrow-forward" size={24} color="#fb5a03" />
         </View>
       </View>
     </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
+  const handleLogout = () => {
+    auth().signOut().then(() => {
+      Alert.alert('Logged out', 'You have been logged out successfully.');
+    }).catch(error => {
+      console.error('Logout error:', error);
+      Alert.alert('Logout failed', 'There was an error logging you out.');
+    });
+  };
 
   return (
     <View style={{ flex: 1 }}>
-      <CustomHeader title="Messages" onLogout={() => auth().signOut()} />
+      <CustomHeader title="Messages" onLogout={handleLogout} />
       <View style={styles.container}>
         <View style={styles.searchContainer}>
-          <Text>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search chats..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+          <View style={styles.searchInputContainer}>
+            <MaterialIcons name="search" size={24} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
         </View>
-        {filteredChats.length === 0 ? (
-          <Text style={styles.text}>No chats found</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0000ff" />
+          </View>
+        ) : filteredChats.length === 0 ? (
+          <Text style={styles.text}>To interact with designers you like, hold on the designs!</Text>
         ) : (
           <FlatList
             data={filteredChats}
@@ -133,46 +182,67 @@ const MessagesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f6f6f6',
   },
   searchContainer: {
+    marginVertical: 16,
+    marginHorizontal: 16,
+  },
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingHorizontal: 25,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   searchInput: {
     flex: 1,
-    fontSize: 20,
+    fontSize: 16,
     color: '#333',
   },
   list: {
-    width: '100%',
+    flex: 1,
+    marginTop: 0,
   },
   chatItem: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
+    marginHorizontal: 16,
+    marginVertical: 6,
     backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
   },
   chatContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lastMessage: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+    marginRight: 8,
+    lineHeight: 18,
+  },
+  messageTime: {
+    fontSize: 14,
+    color: '#aaa',
+  },
   avatarContainer: {
-    marginRight: 15,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#666',
   },
@@ -180,20 +250,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chatText: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#333',
   },
   boldText: {
+    fontSize: 17,
     fontWeight: 'bold',
   },
   arrowContainer: {
-    marginLeft: 10,
+    marginLeft: 'auto',
+    paddingLeft : 10,
   },
   text: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#333',
     textAlign: 'center',
     marginTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

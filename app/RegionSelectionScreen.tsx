@@ -1,24 +1,31 @@
-import React from 'react';
+//RegionSelectionScreen.tsx
+
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRegion } from './RegionContext';
 import { Entypo } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
 
-type RegionSelectionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'RegionSelection'>;
+type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type RegionSelectionScreenProps = {
-  navigation: RegionSelectionScreenNavigationProp;
-};
-
-const RegionSelectionScreen: React.FC<RegionSelectionScreenProps> = ({ navigation }) => {
+const RegionSelectionScreen: React.FC = () => {
+  const navigation = useNavigation<RootStackNavigationProp>();
   const { setRegion } = useRegion();
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
-  const regions = ["Global",'Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Gulf'];
+  const regions = ["Global", 'Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Gulf'];
 
-  const handleRegionSelect = (selectedRegion: string) => {
-    setRegion(selectedRegion);
-    navigation.replace('MainScreen');
+  const handleRegionSelect = (region: string) => {
+    setSelectedRegion(region);
+  };
+
+  const handleConfirmSelection = () => {
+    if (selectedRegion) {
+      setRegion(selectedRegion);
+      navigation.navigate('MainScreen'); // Changed from 'MainScreen' to 'Tabs' to match the Stack.Navigator
+    }
   };
 
   return (
@@ -30,12 +37,23 @@ const RegionSelectionScreen: React.FC<RegionSelectionScreenProps> = ({ navigatio
       {regions.map((region) => (
         <TouchableOpacity 
           key={region} 
-          style={styles.regionButton} 
+          style={[
+            styles.regionButton, 
+            selectedRegion === region && styles.selectedButton
+          ]} 
           onPress={() => handleRegionSelect(region)}
         >
           <Text style={styles.regionButtonText}>{region}</Text>
         </TouchableOpacity>
       ))}
+      {selectedRegion && (
+        <TouchableOpacity 
+          style={styles.confirmButton} 
+          onPress={handleConfirmSelection}
+        >
+          <Text style={styles.confirmButtonText}>Confirm Selection</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -68,11 +86,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
-    elevation: 3, // Added for Android shadow
+    elevation: 3,
+  },
+  selectedButton: {
+    backgroundColor: '#d1e7dd',
   },
   regionButtonText: {
     fontSize: 18,
     color: '#333',
+  },
+  confirmButton: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#fb5a03',
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 
