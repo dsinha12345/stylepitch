@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Alert, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
-import LoginScreen from './LoginScreen';
-import TabNavigator from './TabNavigator';  // Assume we've moved TabNavigator to its own file
 import RegionSelectionScreen from './RegionSelectionScreen'; // Import the new screen
 import { RegionProvider, useRegion } from './RegionContext';
 import {AuthStackScreen} from './AuthStack';
+import MainScreen from './MainScreen';
+
+
 
 const Stack = createStackNavigator();
 
 const App = () => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const { region, setRegion } = useRegion();
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged((user) => {
@@ -24,20 +26,6 @@ const App = () => {
     return unsubscribe;
   }, []);
 
-  const { setRegion } = useRegion(); 
-
-  const handleLogout = () => {
-    auth()
-      .signOut()
-      .then(() => {
-        setRegion('');
-        Alert.alert('Logged out', 'You have been logged out successfully.');
-      })
-      .catch(error => {
-        console.error('Logout failed', error);
-        Alert.alert('Error', 'Logout failed. Please try again.');
-      });
-  };
 
   if (initializing) {
     return (
@@ -59,10 +47,9 @@ const App = () => {
         />
           <Stack.Screen
             name="MainScreen"
+            component={MainScreen}
             options={{ headerShown: false }}
-          >
-            {(props) => <TabNavigator {...props} handleLogout={handleLogout} />}
-          </Stack.Screen>
+          />
           </>
         ) : (
           <Stack.Screen

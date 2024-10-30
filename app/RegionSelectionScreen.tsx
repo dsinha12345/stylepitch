@@ -5,10 +5,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRegion } from './RegionContext';
 import { Entypo } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from './types';
+import { RootStackParamList, RootStackNavigationProp } from './types';
 
-type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const RegionSelectionScreen: React.FC = () => {
   const navigation = useNavigation<RootStackNavigationProp>();
