@@ -7,6 +7,7 @@ import LoginScreen from './LoginScreen';
 import TabNavigator from './TabNavigator';  // Assume we've moved TabNavigator to its own file
 import RegionSelectionScreen from './RegionSelectionScreen'; // Import the new screen
 import { RegionProvider, useRegion } from './RegionContext';
+import {AuthStackScreen} from './AuthStack';
 
 const Stack = createStackNavigator();
 
@@ -66,7 +67,7 @@ const App = () => {
         ) : (
           <Stack.Screen
             name="Login"
-            component={LoginScreen}
+            component={AuthStackScreen}
             options={{ headerShown: false }}
           />
         )}
