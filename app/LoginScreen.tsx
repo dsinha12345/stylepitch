@@ -195,6 +195,9 @@ const LoginScreen = () => {
           {isLogin ? 'Don\'t have an account? Register' : 'Already have an account? Login'}
         </Text>
       </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('ForgotPasswordScreen')}>
+        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -254,6 +257,12 @@ const styles = StyleSheet.create({
     color: '#fb5a03',
     marginTop: 10,
   },
+  forgotPasswordText: {
+    color: '#fb5a03',
+    marginTop: 10,
+    textDecorationLine: 'underline', // Optional: adds underline to indicate it's a link
+    fontSize: 14, // Optional: adjust size as needed
+},
 });
 
 export default LoginScreen;
