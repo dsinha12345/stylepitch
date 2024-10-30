@@ -7,7 +7,8 @@ import CustomHeader from './customheader';
 import { UserProfileStack } from './UserProfileStack';
 import { SavedScreenStack } from './SavedScreenStack';
 import MessageStack from './MessagesStack';
-
+import ForgotPasswordScreen from './ForgotPasswordScreen';
+import {AuthStackScreen} from './AuthStack';
 const Tab = createBottomTabNavigator();
 
 interface TabNavigatorProps {
@@ -90,6 +91,20 @@ const TabNavigator: React.FC<TabNavigatorProps> = ({ handleLogout }) => (
         ),
         tabBarLabel: "",
         headerShown: false
+      }}
+    />
+    <Tab.Screen
+      name="Auth"
+      component={AuthStackScreen}
+      options={{
+        tabBarIcon: () => (
+          <RNImage
+            source={require('../assets/hanger.png')} // Replace with your icon
+            style={{ width: 24, height: 24 }}
+          />
+        ),
+        tabBarLabel: "",
+        headerShown: false,
       }}
     />
   </Tab.Navigator>

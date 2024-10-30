@@ -19,6 +19,7 @@ export type RootStackParamList = {
   AddImages: { designTitle: string }; // Expecting designTitle as param
   SelectRegion: { designTitle: string; imageUrls: string[] };
   RegionSelection: undefined;
+  ForgotPasswordScreen: undefined;
 };
 
 // User Profile Stack Parameter List
