@@ -3,8 +3,6 @@ import { RefreshControl,TextInput, Alert, View, Text, StyleSheet, Dimensions, To
 import Swiper from 'react-native-deck-swiper';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
-import RNPickerSelect from 'react-native-picker-select';
-import { useRegion } from './RegionContext'; // Import the context hook
 
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -26,26 +24,32 @@ const SwipeScreen: React.FC = () => {
   const [customMessage, setCustomMessage] = useState("Hi, I'm interested in your design!");
   const [isMessageModalVisible, setIsMessageModalVisible] = useState(false);
   const [selectedDesignerId, setSelectedDesignerId] = useState<string | null>(null);
-  const { region } = useRegion();
-
+  const [region, setRegion] = useState<string>("Global");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   const user = auth().currentUser;
 
-  const fetchDesigns = async () => {
-    try {
-      const snapshot = await firestore().collection('designs').orderBy("createdAt","desc").limit(100).get();
-      const designsData = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...(data as Omit<Design, 'id'>)
-        };
-      });
-      setDesigns(designsData);
-    } catch (error) {
-      console.error('Error fetching designs:', error);
+  useEffect(() => {
+    let unsubscribe = () => {};
+    const user = auth().currentUser
+    if (user) {
+      unsubscribe = firestore()
+        .collection('users')
+        .doc(user.uid)
+        .onSnapshot((doc) => {
+          if (doc.exists) {
+            const userRegion = doc.data()?.regionPreference;
+            setRegion(userRegion || "Global");
+          }
+        }, (error) => {
+          console.error('Error fetching user region:', error);
+        });
+    } else {
+      setRegion("Global");
     }
-  };
+
+    return () => unsubscribe();
+  }, [isAuthenticated]);
   const loadDesignsByRegion = async (selectedRegion: string) => {
     try {
       const regionDoc = await firestore()
@@ -63,7 +67,6 @@ const SwipeScreen: React.FC = () => {
           ...(data as Omit<Design, 'id'>)
         };
       });
-      console.log(selectedRegion);
       setDesigns(designsData);
   
     } catch (error) {
@@ -83,11 +86,27 @@ const SwipeScreen: React.FC = () => {
       }
     }
   };
+  
 
   useEffect(() => {
-    loadDesignsByRegion(region);
-    fetchSavedDesigns();
-  }, [region]);
+    const unsubscribe = auth().onAuthStateChanged((user) => {
+      setIsAuthenticated(!!user);
+      if (user) {
+        fetchSavedDesigns();
+      } else {
+        // User is signed out
+        setRegion("Global"); // Reset or handle the region
+      }
+    });
+  
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (region && user) {
+      loadDesignsByRegion(region);
+    }
+  }, [region,user]);
 
   const savePost = useCallback(
     async (id: string) => {

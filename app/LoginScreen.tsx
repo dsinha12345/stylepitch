@@ -6,6 +6,7 @@ import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types';
 import { GoogleSignin, GoogleSigninButton, SignInSuccessResponse } from '@react-native-google-signin/google-signin';
+import { Picker } from '@react-native-picker/picker';
 
 
 const logo = require('../assets/company_logo_only.png'); // Adjust the path based on your project structure
@@ -17,6 +18,7 @@ const LoginScreen = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const navigation = useNavigation<RootStackNavigationProp>();
+  const [regionPreference, setRegionPreference] = useState('Global');
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -29,6 +31,7 @@ const LoginScreen = () => {
     setPassword('');
     setFirstName('');
     setLastName('');
+    setRegionPreference('Global');
   };
 
   const handleFormSubmit = () => {
@@ -62,7 +65,7 @@ const LoginScreen = () => {
   };
 
   const handleRegister = () => {
-    if (email === '' || password === '' || firstName === '' || lastName === '') {
+    if (email === '' || password === '' || firstName === '' || lastName === '' || regionPreference === ''){
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -80,6 +83,7 @@ const LoginScreen = () => {
             firstName: firstName,
             lastName: lastName,
             email: email,
+            regionPreference : regionPreference,
           })
           .then(() => {
             Alert.alert('Registration Success', `Account created for ${firstName}`);
@@ -174,6 +178,21 @@ const LoginScreen = () => {
             value={lastName}
             onChangeText={(text) => setLastName(text)}
           />
+          <Text style={styles.label}>Region Preference</Text>
+          <Picker
+            selectedValue={regionPreference}
+            onValueChange={(itemValue) => setRegionPreference(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Global" value="Global" />
+            <Picker.Item label="Americas" value="Americas" />
+            <Picker.Item label="Europe" value="Europe" />
+            <Picker.Item label="East Asia" value="East Asia" />
+            <Picker.Item label="South Asia" value="South Asia" />
+            <Picker.Item label="Africa" value="Africa" />
+            <Picker.Item label="Australia" value="Australia" />
+            <Picker.Item label="Gulf" value="Gulf" />
+          </Picker>
         </>
       )}
 
@@ -227,6 +246,19 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 20,
+  },
+  picker: {
+    width: '100%',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    alignSelf: 'flex-start',
   },
   logo: {
     width: 150, // Adjust width as needed

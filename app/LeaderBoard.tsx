@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, View, Text, FlatList, StyleSheet, Dimensions, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
-import { useRegion } from './RegionContext'; // Import the context hook
-import firestore from '@react-native-firebase/firestore'; // Firestore import
+import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types';
@@ -13,7 +12,7 @@ const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
 interface Design {
   id: string;
   title?: string;
-  imageUrls: string[]; // Assuming imageUrls is an array of strings
+  imageUrls: string[];
   likes: number;
   userId: string;
 }
@@ -22,7 +21,7 @@ const Card = ({ title, likes, imageUrls, onPress }: { title?: string; likes: num
   <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
     {imageUrls.length > 0 && (
       <Image
-        source={{ uri: imageUrls[0] }} // Display the first image
+        source={{ uri: imageUrls[0] }}
         style={styles.cardImage}
         resizeMode="cover"
       />
@@ -35,59 +34,118 @@ const Card = ({ title, likes, imageUrls, onPress }: { title?: string; likes: num
 );
 
 const LeaderBoardScreen = () => {
-  const navigation = useNavigation<RootStackNavigationProp>(); 
-  const { region } = useRegion(); // Get the selected region from the context
+  const navigation = useNavigation<RootStackNavigationProp>();
+  const [region, setRegion] = useState<string>("Global");
   const [designs, setDesigns] = useState<Design[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   
-  const user = auth().currentUser;
-
+  // Listen to auth state changes
   useEffect(() => {
+    const unsubscribeAuth = auth().onAuthStateChanged(user => {
+      setIsAuthenticated(!!user);
+      if (!user) {
+        setRegion("Global");
+        setDesigns([]);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+  useEffect(() => {
+    let unsubscribe = () => {};
+    const user = auth().currentUser
     if (user) {
-      const fetchTopDesigns = async () => {
-        setLoading(true);
-        try {
-          const designSnapshot = await firestore()
-            .collection('regions')
-            .doc(region)
-            .collection('designs')
-            .orderBy('likes', 'desc') // Fetch designs by most likes
-            .limit(10) // Top 10 designs
-            .get();
-
-          const designData = designSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(), // This should include title, likes, imageUrls, etc.
-          })) as Design[];
-
-          setDesigns(designData);
-        } catch (error) {
-          console.error("Error fetching designs:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchTopDesigns();
+      unsubscribe = firestore()
+        .collection('users')
+        .doc(user.uid)
+        .onSnapshot((doc) => {
+          if (doc.exists) {
+            const userRegion = doc.data()?.regionPreference;
+            setRegion(userRegion || "Global");
+          }
+        }, (error) => {
+          console.error('Error fetching user region:', error);
+        });
     } else {
-      console.log("No user logged in!");
+      setRegion("Global");
     }
-  }, [region, user]);
+
+    return () => unsubscribe();
+  }, [isAuthenticated]);
+
+  // Handle region subscription only when authenticated
+  useEffect(() => {
+    let unsubscribeRegion: (() => void) | undefined;
+
+    if (isAuthenticated) {
+      const user = auth().currentUser;
+      if (user) {
+        const userDocRef = firestore().collection('users').doc(user.uid);
+        unsubscribeRegion = userDocRef.onSnapshot((doc) => {
+          if (doc.exists) {
+            const userRegion = doc.data()?.regionPreference;
+            setRegion(userRegion);
+          }
+        }, (error) => {
+          console.error('Error fetching user region:', error);
+        });
+      }
+    }
+
+    return () => {
+      if (unsubscribeRegion) {
+        unsubscribeRegion();
+      }
+    };
+  }, [isAuthenticated]);
+
+  // Fetch designs when region changes
+  useEffect(() => {
+    const fetchTopDesigns = async () => {
+      setLoading(true);
+      try {
+        const designSnapshot = await firestore()
+          .collection('regions')
+          .doc(region)
+          .collection('designs')
+          .orderBy('likes', 'desc')
+          .limit(10)
+          .get();
+
+        const designData = designSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Design[];
+
+        setDesigns(designData);
+      } catch (error) {
+        console.error("Error fetching designs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTopDesigns();
+  }, [region]);
+
   const navigateToCardDetail = (id: string) => {
-    navigation.navigate('CardDetailScreen', { id }); // Navigate to CardDetailScreen with the design ID
+    navigation.navigate('CardDetailScreen', { id });
   };
 
-  const handleLogout = () => {
-    auth().signOut().then(() => {
+  const handleLogout = async () => {
+    try {
+      await auth().signOut();
       Alert.alert('Logged out', 'You have been logged out successfully.');
-    }).catch(error => {
+    } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Logout failed', 'There was an error logging you out.');
-    });
+    }
   };
+
   return (
     <View style={{ flex: 1 }}>
-      <CustomHeader title='LeaderBoard' onLogout={handleLogout}/>
+      <CustomHeader title='LeaderBoard' onLogout={handleLogout} />
       <Text style={styles.header}>Top Designs in {region}</Text>
       <View style={styles.container}>
         {loading ? (
@@ -96,7 +154,12 @@ const LeaderBoardScreen = () => {
           <FlatList
             data={designs}
             renderItem={({ item }) => (
-              <Card title={item.title} likes={item.likes} imageUrls={item.imageUrls} onPress={() => navigateToCardDetail(item.id)} />
+              <Card 
+                title={item.title} 
+                likes={item.likes} 
+                imageUrls={item.imageUrls} 
+                onPress={() => navigateToCardDetail(item.id)} 
+              />
             )}
             keyExtractor={(item) => item.id}
             numColumns={2}
@@ -135,11 +198,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3.84,
     elevation: 5,
-    overflow: 'hidden', // Prevents overflow for rounded corners
+    overflow: 'hidden',
   },
   cardImage: {
     width: '100%',
-    height: '85%', // Adjust as needed
+    height: '85%',
   },
   cardContent: {
     padding: 10,

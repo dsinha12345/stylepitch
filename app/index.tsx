@@ -3,8 +3,6 @@ import { View, StyleSheet, Image } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
-import RegionSelectionScreen from './RegionSelectionScreen'; // Import the new screen
-import { RegionProvider, useRegion } from './RegionContext';
 import {AuthStackScreen} from './AuthStack';
 import MainScreen from './MainScreen';
 
@@ -15,7 +13,6 @@ const Stack = createStackNavigator();
 const App = () => {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const { region, setRegion } = useRegion();
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged((user) => {
@@ -36,15 +33,9 @@ const App = () => {
   }
   
   return (
-    <RegionProvider>
       <Stack.Navigator>
         {user ? (
         <>
-          <Stack.Screen
-          name="RegionSelection"
-          component={RegionSelectionScreen}
-          options={{ headerShown: false }}
-        />
           <Stack.Screen
             name="MainScreen"
             component={MainScreen}
@@ -59,7 +50,6 @@ const App = () => {
           />
         )}
       </Stack.Navigator>
-      </RegionProvider>
   );
 };
 

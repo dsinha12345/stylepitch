@@ -1,21 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert, View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, Pressable } from 'react-native';
-import { useRegion } from './RegionContext'; // Import the custom hook for global region
 import CustomHeader from './customheader';
 import auth from '@react-native-firebase/auth';
 import Entypo from '@expo/vector-icons/Entypo';
+import firestore from '@react-native-firebase/firestore';
+
 
 const SettingsScreen = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [region, setRegion] = useState<string>("Global"); // Default region value
+  const regions = ["Global", 'Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Gulf'];
 
-  // Use the global region state
-  const { region, setRegion } = useRegion(); // Global region from context
+  const user = auth().currentUser;
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    // Set up auth state listener
+    const unsubscribe = auth().onAuthStateChanged(user => {
+      setIsAuthenticated(!!user);
+      
+      // Only fetch region if user is authenticated
+      if (user) {
+        firestore()
+          .collection('users')
+          .doc(user.uid)
+          .get()
+          .then(userDoc => {
+            if (userDoc.exists) {
+              setRegion(userDoc.data()?.regionPreference || "Global");
+            }
+          })
+          .catch(error => {
+            console.error("Error fetching user region:", error);
+          });
+      } else {
+        // Reset region to default if user is not authenticated
+        setRegion("Global");
+      }
+    });
+
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, []);
+
+
 
   // List of settings options
   const settingsOptions = [{ id: '1', name: 'Region' }];
-
-  // List of regions for the modal
-  const regions = ["Global",'Americas', 'Europe', 'East Asia', 'South Asia', 'Africa', 'Australia', 'Gulf'];
 
   const handleOptionPress = (option: string) => {
     if (option === 'Region') {
@@ -23,9 +54,18 @@ const SettingsScreen = () => {
     }
   };
 
-  const handleRegionSelect = (selectedRegion: string) => {
-    setRegion(selectedRegion); // Update the global region
-    setIsModalVisible(false);
+  const handleRegionSelect = async (selectedRegion: string) => {
+    if (user) {
+      try {
+        // Update region in Firebase
+        await firestore().collection('users').doc(user.uid).update({ regionPreference: selectedRegion });
+        setRegion(selectedRegion); // Update local state
+        setIsModalVisible(false);
+      } catch (error) {
+        console.error("Error updating region:", error);
+        Alert.alert("Error", "Could not update region.");
+      }
+    }
   };
 
   const handleLogout = () => {
