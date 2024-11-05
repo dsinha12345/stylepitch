@@ -102,6 +102,8 @@ const LeaderBoardScreen = () => {
 
   // Fetch designs when region changes
   useEffect(() => {
+    if (!isAuthenticated) return;
+  
     const fetchTopDesigns = async () => {
       setLoading(true);
       try {
@@ -112,12 +114,12 @@ const LeaderBoardScreen = () => {
           .orderBy('likes', 'desc')
           .limit(10)
           .get();
-
+  
         const designData = designSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         })) as Design[];
-
+  
         setDesigns(designData);
       } catch (error) {
         console.error("Error fetching designs:", error);
@@ -125,9 +127,9 @@ const LeaderBoardScreen = () => {
         setLoading(false);
       }
     };
-
+  
     fetchTopDesigns();
-  }, [region]);
+  }, [region, isAuthenticated]);
 
   const navigateToCardDetail = (id: string) => {
     navigation.navigate('CardDetailScreen', { id });
