@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { RefreshControl,TextInput, Alert, View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView, Modal } from 'react-native';
+import { RefreshControl,TextInput, Alert, View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView, Modal, Share } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
@@ -273,6 +273,27 @@ const SwipeScreen: React.FC = () => {
     }
   }, []);
 
+  const handleShare = async (design: Design) => {
+    try {
+      const result = await Share.share({
+        message: `Check out this amazing design: ${design.title}`,
+        url: design.imageUrls[0], // Share the first image URL
+        title: design.title || 'Amazing Design'
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          console.log('Shared with activity type:', result.activityType);
+        } else {
+          console.log('Shared successfully');
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong while sharing the design');
+      console.error(error);
+    }
+  };
+
   const renderCard = useCallback(
     (card: Design | undefined) => {
       if (!card) {
@@ -322,6 +343,17 @@ const SwipeScreen: React.FC = () => {
               <RNImage source={require('../assets/dislike.jpg')} style={styles.likeIcon} />
               <Text style={styles.dislikesText}>{card.dislikes}</Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.shareButton} 
+              onPress={() => handleShare(card)}
+            >
+              <RNImage 
+                source={require('../assets/share.png')} 
+                style={styles.shareIcon}
+              />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.likeItem} onPress={handleLikePress}>
               <RNImage source={require('../assets/like.jpg')} style={styles.likeIcon} />
               <Text style={styles.likesText}>{card.likes}</Text>
@@ -402,7 +434,6 @@ const SwipeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: '#f8f9f9',
@@ -471,7 +502,11 @@ const styles = StyleSheet.create({
   likesContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
     paddingVertical: 15,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   likeItem: {
     flexDirection: 'row',
@@ -482,6 +517,17 @@ const styles = StyleSheet.create({
     height: 25,
     marginRight: 8,
   },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    backgroundColor: '#fff',
+  },
+  shareIcon: {
+    width: 25,
+    height: 25,
+  },
+  
   likesText: {
     fontSize: 16,
     fontWeight: '600',
@@ -533,5 +579,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
 
 export default SwipeScreen;
