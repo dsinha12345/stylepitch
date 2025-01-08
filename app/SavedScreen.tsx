@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, View, Text, FlatList, StyleSheet, Dimensions, Image, RefreshControl, TouchableOpacity } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types'; // Adjust the path as necessary
 import CustomHeader from './customheader';
+import app from '@/firebaseConfig';
 
 const CARD_WIDTH = (Dimensions.get('window').width / 2) - 25;
 const CARD_HEIGHT = Dimensions.get('window').height * 0.4;
@@ -32,17 +33,21 @@ const SavedScreen = () => {
   const navigation = useNavigation<RootStackNavigationProp>(); 
   const [savedDesigns, setSavedDesigns] = useState<Design[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const user = auth().currentUser;
+  const [user, setUser] = useState<any>(null); // Track user state
+  
+  
+  const auth = getAuth(app);
+  const firestore = getFirestore(app);
 
   const fetchSavedDesigns = async () => {
     if (user) {
       setIsRefreshing(true);
       try {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
         const savedDesignsIds = userDoc.data()?.savedDesigns || [];
 
         const designsPromises = savedDesignsIds.map(async (id: string) => {
-          const designDoc = await firestore().collection('designs').doc(id).get();
+          const designDoc = await getDoc(doc(firestore, 'designs', id));
           return { id: designDoc.id, ...(designDoc.data() as Omit<Design, 'id'>) };
         });
 
@@ -57,19 +62,33 @@ const SavedScreen = () => {
   };
 
   useEffect(() => {
-    fetchSavedDesigns();
-  }, [user]);
+    // Monitor user authentication state
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchSavedDesigns();
+      } else {
+        setSavedDesigns([]); // Clear designs if no user
+      }
+    });
+
+    // Cleanup the listener on unmount
+    return () => unsubscribe();
+  }, [auth]);
 
   const navigateToCardDetail = (id: string) => {
     navigation.navigate('CardDetailScreen', { id }); // Navigate to CardDetailScreen with the design ID
   };
+
   const handleLogout = () => {
-    auth().signOut().then(() => {
-      Alert.alert('Logged out', 'You have been logged out successfully.');
-    }).catch(error => {
-      console.error('Logout error:', error);
-      Alert.alert('Logout failed', 'There was an error logging you out.');
-    });
+    signOut(auth)
+      .then(() => {
+        Alert.alert('Logged out', 'You have been logged out successfully.');
+      })
+      .catch((error) => {
+        console.error('Logout error:', error);
+        Alert.alert('Logout failed', 'There was an error logging you out.');
+      });
   };
   return (
     <View style={{ flex: 1 }}>

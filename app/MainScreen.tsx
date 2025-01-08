@@ -7,24 +7,12 @@ import { UserProfileStack } from './UserProfileStack';
 import { SavedScreenStack } from './SavedScreenStack';
 import MessageStack from './MessagesStack';
 import CustomHeader from './customheader';
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import { useAuth } from './Contexts/AuthContext'; // Import useAuth
 
 const Tab = createBottomTabNavigator();
 
 const MainScreen = () => {
 
-  const handleLogout = () => {
-    auth()
-      .signOut()
-      .then(() => {
-        Alert.alert('Logged out', 'You have been logged out successfully.');
-      })
-      .catch(error => {
-        console.error('Logout failed', error);
-        Alert.alert('Error', 'Logout failed. Please try again.');
-      });
-  };
 
   return (
     <Tab.Navigator
@@ -32,7 +20,7 @@ const MainScreen = () => {
       screenOptions={({ route }) => ({
         tabBarStyle: { backgroundColor: '#fff', borderTopColor: '#eee', paddingVertical: 20 },
         tabBarLabelStyle: { fontSize: 16 },
-        header: () => <CustomHeader title={route.name} onLogout={handleLogout} />,
+        headerShown: false
       })}
     >
       <Tab.Screen

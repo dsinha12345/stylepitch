@@ -1,9 +1,8 @@
-// ProfileScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, Text, TextInput, View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
-import CustomHeader from './customheader'; // Ensure the path is correct
+import { SafeAreaView, Text, TextInput, View, StyleSheet, Alert, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { getAuth, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import CustomHeader from './customheader';
 
 const ProfileScreen = () => {
   const [firstName, setFirstName] = useState('');
@@ -12,14 +11,18 @@ const ProfileScreen = () => {
   const [organization, setOrganization] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const auth = getAuth();
+  const firestore = getFirestore();
+
   useEffect(() => {
     const fetchUserData = async () => {
-      const currentUser = auth().currentUser;
+      const currentUser = auth.currentUser;
       if (!currentUser) return;
 
       try {
-        const userDoc = await firestore().collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
+        const userDocRef = doc(firestore, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
           const data = userDoc.data();
           setFirstName(data?.firstName || '');
           setLastName(data?.lastName || '');
@@ -36,7 +39,7 @@ const ProfileScreen = () => {
   }, []);
 
   const handleUpdateProfile = async () => {
-    const currentUser = auth().currentUser;
+    const currentUser = auth.currentUser;
     if (!currentUser) {
       Alert.alert('Error', 'No user is logged in.');
       return;
@@ -45,7 +48,8 @@ const ProfileScreen = () => {
     setLoading(true);
 
     try {
-      await firestore().collection('users').doc(currentUser.uid).update({
+      const userDocRef = doc(firestore, 'users', currentUser.uid);
+      await updateDoc(userDocRef, {
         firstName,
         lastName,
         phoneNumber,
@@ -61,62 +65,87 @@ const ProfileScreen = () => {
     }
   };
 
-  const handleLogout = () => {
-    auth().signOut().then(() => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
       Alert.alert('Logged out', 'You have been logged out successfully.');
-    }).catch(error => {
+    } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Logout failed', 'There was an error logging you out.');
-    });
+    }
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* CustomHeader placed outside SafeAreaView */}
+    <View style={styles.container}>
       <CustomHeader title="Profile" onLogout={handleLogout} />
-
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.label}>First Name</Text>
-        <TextInput
-          style={styles.input}
-          value={firstName}
-          onChangeText={setFirstName}
-          placeholder="Enter your first name"
-        />
-
-        <Text style={styles.label}>Last Name</Text>
-        <TextInput
-          style={styles.input}
-          value={lastName}
-          onChangeText={setLastName}
-          placeholder="Enter your last name"
-        />
-
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          style={styles.input}
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
-          placeholder="Enter your phone number"
-          keyboardType="phone-pad"
-        />
-
-        <Text style={styles.label}>Organization</Text>
-        <TextInput
-          style={styles.input}
-          value={organization}
-          onChangeText={setOrganization}
-          placeholder="Enter your organization"
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleUpdateProfile}
-          disabled={loading}
+      
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.buttonText}>{loading ? 'Updating...' : 'Update Profile'}</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>First Name</Text>
+              <TextInput
+                style={styles.input}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Enter your first name"
+                placeholderTextColor="#888"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Last Name</Text>
+              <TextInput
+                style={styles.input}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Enter your last name"
+                placeholderTextColor="#888"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                placeholder="Enter your phone number"
+                keyboardType="phone-pad"
+                placeholderTextColor="#888"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Organization</Text>
+              <TextInput
+                style={styles.input}
+                value={organization}
+                onChangeText={setOrganization}
+                placeholder="Enter your organization"
+                placeholderTextColor="#888"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleUpdateProfile}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Updating...' : 'Update Profile'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -124,38 +153,76 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f8f9f9',
+    backgroundColor: '#f4f4f4',
+  },
+  keyboardAvoidView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  gradientHeader: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  screenTitle: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  formContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 50,
+    marginTop: -20,
+  },
+  inputGroup: {
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
-    marginVertical: 10,
-    color: '#333', // Consistent label color
+    marginBottom: 10,
+    color: '#333',
+    fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8, // Increased border radius for consistency
-    padding: 15, // Increased padding to match UploadDesignScreen
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 15,
     fontSize: 16,
-    marginBottom: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#f9f9f9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   button: {
-    backgroundColor: '#fb5a03', // Orange color matching UploadDesignScreen
+    backgroundColor: '#fb5a03',
     padding: 15,
-    borderRadius: 8, // Consistent border radius
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
-    width: '90%', // Match button width in UploadDesignScreen
-    alignSelf: 'center', // Center the button
+    shadowColor: '#fb5a03',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
   },
   buttonDisabled: {
-    backgroundColor: '#ccc', // Disabled state color
+    backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });
 

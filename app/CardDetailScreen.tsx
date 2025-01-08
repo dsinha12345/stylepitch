@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, Image as RNImage, TouchableOpacity, SafeAreaView } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getFirestore, doc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import app from '../firebaseConfig'; 
 import CustomHeader from './customheader'; // Adjust the path as necessary
 import { RouteProp } from '@react-navigation/native';
 import { UserProfileStackParamList } from './types'; // Adjust the path as necessary
@@ -26,13 +27,18 @@ const CardDetailScreen: React.FC<CardDetailScreenProps> = ({ route }) => {
   const [design, setDesign] = useState<Design | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const user = auth().currentUser;
+  const auth = getAuth(app);
+  const user = auth.currentUser;
+  const firestore = getFirestore(app);
+
 
   const fetchDesign = async () => {
     try {
-      const doc = await firestore().collection('designs').doc(id).get();
-      if (doc.exists) {
-        setDesign({ id: doc.id, ...(doc.data() as Omit<Design, 'id'>) });
+      const docRef = doc(firestore, 'designs', id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        setDesign({ id: docSnap.id, ...(docSnap.data() as Omit<Design, 'id'>) });
       } else {
         console.error('No such design!');
       }
@@ -50,9 +56,9 @@ const CardDetailScreen: React.FC<CardDetailScreenProps> = ({ route }) => {
   const saveDesign = async () => {
     if (user) {
       try {
-        const userDocRef = firestore().collection('users').doc(user.uid);
-        await userDocRef.update({
-          savedDesigns: firestore.FieldValue.arrayUnion(id),
+        const userDocRef = doc(firestore, 'users', user.uid);
+        await updateDoc(userDocRef, {
+          savedDesigns: arrayUnion(id),
         });
         console.log(`Design ${id} saved successfully!`);
       } catch (error) {

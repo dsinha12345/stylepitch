@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { RefreshControl,TextInput, Alert, View, Text, StyleSheet, Dimensions, TouchableOpacity, Image as RNImage, ScrollView, SafeAreaView, Modal, Share } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getFirestore, collection, doc, getDoc, updateDoc, query, where, getDocs, orderBy, arrayUnion, increment, addDoc, serverTimestamp } from "firebase/firestore";
+import { getAuth, onAuthStateChanged, currentUser } from "firebase/auth";
+import app from '../firebaseConfig';
+import CustomHeader from './customheader';
+import { useNavigation } from '@react-navigation/native';
+import { RootStackNavigationProp } from './types'; // Adjust the path as necessary
+
+// Initialize Firebase
+
+const auth = getAuth(app);
+const firestore = getFirestore(app);
 
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -26,108 +35,85 @@ const SwipeScreen: React.FC = () => {
   const [selectedDesignerId, setSelectedDesignerId] = useState<string | null>(null);
   const [region, setRegion] = useState<string>("Global");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  const user = auth().currentUser;
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const navigation = useNavigation<RootStackNavigationProp>(); 
+
 
   useEffect(() => {
-    let unsubscribe = () => {};
-    const user = auth().currentUser
-    if (user) {
-      unsubscribe = firestore()
-        .collection('users')
-        .doc(user.uid)
-        .onSnapshot((doc) => {
-          if (doc.exists) {
-            const userRegion = doc.data()?.regionPreference;
-            setRegion(userRegion || "Global");
-          }
-        }, (error) => {
-          console.error('Error fetching user region:', error);
-        });
-    } else {
-      setRegion("Global");
-    }
-
-    return () => unsubscribe();
-  }, [isAuthenticated]);
-  const loadDesignsByRegion = async (selectedRegion: string) => {
-    try {
-      const regionDoc = await firestore()
-        .collection('regions')
-        .doc(selectedRegion)
-        .collection("designs")
-        .orderBy("createdAt", "desc")
-        .get();
-  
-      // Extract design IDs from region documents
-      const designsData = regionDoc.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...(data as Omit<Design, 'id'>)
-        };
-      });
-      setDesigns(designsData);
-  
-    } catch (error) {
-      console.error('Error fetching designs:', error);
-    }
-  };
-  
-  
-  const fetchSavedDesigns = async () => {
-    if (user) {
-      try {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
-        const savedDesigns = userDoc.data()?.savedDesigns || [];
-        setSavedCards(savedDesigns);
-      } catch (error) {
-        console.error('Error fetching saved designs:', error);
-      }
-    }
-  };
-  
-
-  useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
       if (user) {
-        fetchSavedDesigns();
+        fetchSavedDesigns(user.uid);
+        fetchUserRegion(user.uid);
       } else {
-        // User is signed out
-        setRegion("Global"); // Reset or handle the region
+        setRegion("Global");
       }
     });
-  
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
+  const fetchUserRegion = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(firestore, "users", userId));
+      const userData = userDoc.data();
+      setRegion(userData?.regionPreference || "Global");
+    } catch (error) {
+      console.error("Error fetching user region:", error);
+    }
+  };
+
+  const loadDesignsByRegion = async (selectedRegion: string) => {
+    try {
+      const designsRef = collection(firestore, "regions", selectedRegion, "designs");
+      const designsQuery = query(designsRef, orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(designsQuery);
+
+      const designsData: Design[] = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Design[];
+
+      setDesigns(designsData);
+    } catch (error) {
+      console.error("Error fetching designs:", error);
+    }
+  };
+  
+  
+  const fetchSavedDesigns = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(firestore, "users", userId));
+      const savedDesigns = userDoc.data()?.savedDesigns || [];
+      setSavedCards(savedDesigns);
+    } catch (error) {
+      console.error("Error fetching saved designs:", error);
+    }
+  };
+
+
   useEffect(() => {
-    if (region && user) {
+    if (region && isAuthenticated) {
       loadDesignsByRegion(region);
     }
-  }, [region,user]);
+  }, [region, isAuthenticated]);
 
-  const savePost = useCallback(
-    async (id: string) => {
-      if (user) {
-        try {
-          const userDocRef = firestore().collection('users').doc(user.uid);
-          await userDocRef.update({
-            savedDesigns: firestore.FieldValue.arrayUnion(id),
-          });
-          setSavedCards((prev) => [...prev, id]);
-          console.log(`Design ${id} saved successfully!`);
-        } catch (error) {
-          console.error('Error saving design:', error);
-          Alert.alert("Error", "Failed to save the design. Please try again.");
-        }
-      } else {
-        Alert.alert("Error", "You must be logged in to save designs.");
+  const savePost = async (id: string) => {
+    if (auth.currentUser) {
+      try {
+        const userRef = doc(firestore, "users", auth.currentUser.uid);
+        await updateDoc(userRef, {
+          savedDesigns: arrayUnion(id),
+        });
+        setSavedCards((prev) => [...prev, id]);
+        console.log(`Design ${id} saved successfully!`);
+      } catch (error) {
+        console.error('Error saving design:', error);
+        Alert.alert("Error", "Failed to save the design. Please try again.");
       }
-    },
-    [user]
-  );
+    } else {
+      Alert.alert("Error", "You must be logged in to save designs.");
+    }
+  };
 
   const isSaved = useCallback((id: string) => savedCards.includes(id), [savedCards]);
 
@@ -136,113 +122,98 @@ const SwipeScreen: React.FC = () => {
     setIsMessageModalVisible(true);
   }, []);
 
+
   const sendMessageToDesigner = useCallback(async () => {
-    if (!user || !selectedDesignerId) {
-      Alert.alert("Error", "You must be logged in to send messages.");
+    if (!currentUser || !selectedDesignerId) {
+      Alert.alert('Error', 'You must be logged in to send messages.');
       return;
     }
-
+  
     try {
-      if (!user.uid) {
-        throw new Error('User ID is undefined');
+      const userDocRef = doc(firestore, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+  
+      if (!userDoc.exists()) {
+        throw new Error('User data does not exist.');
       }
-
-      // Check if a chat already exists
-      const userDoc = await firestore().collection('users').doc(user.uid).get();
+  
       const userData = userDoc.data();
-
-      let existingChatId = null;
-      if (userData?.chats) {
-        existingChatId = Object.keys(userData.chats).find(chatId => {
-          const chatParticipant = userData.chats[chatId];
-          return chatParticipant === selectedDesignerId;
-        });
-      }
-
-      let chatId;
-      if (existingChatId) {
-        chatId = existingChatId;
+      
+      // Check if a chat already exists between these users
+      const chatQuery = query(
+        collection(firestore, 'chats'),
+        where('participants', 'array-contains', currentUser.uid)
+      );
+      const chatSnapshot = await getDocs(chatQuery);
+      
+      let chatId: string;
+      const existingChat = chatSnapshot.docs.find(
+        (chat) => chat.data().participants.includes(selectedDesignerId)
+      );
+  
+      if (existingChat) {
+        chatId = existingChat.id;
       } else {
-        // Create a new chat document
-        const newChatRef = await firestore().collection('chats').add({
-          participants: [user.uid, selectedDesignerId],
-          createdAt: firestore.FieldValue.serverTimestamp(),
+        // Create a new chat if one doesn't exist
+        const chatRef = await addDoc(collection(firestore, 'chats'), {
+          participants: [currentUser.uid, selectedDesignerId],
+          createdAt: serverTimestamp(),
         });
-        chatId = newChatRef.id;
-
-        // Update current user's document
-        await firestore().collection('users').doc(user.uid).update({
-          [`chats.${chatId}`]: selectedDesignerId,
-        });
-        
-        // Update designer's document
-        await firestore().collection('users').doc(selectedDesignerId).update({
-          [`chats.${chatId}`]: user.uid,
-        });
+        chatId = chatRef.id;
       }
-
-      // Add the message to the chat
-      await firestore().collection('chats').doc(chatId).collection('messages').add({
-        text: customMessage,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        senderId: user.uid,
+  
+      // Update user chat references
+      await Promise.all([
+        updateDoc(userDocRef, {
+          [`chats.${chatId}`]: selectedDesignerId,
+        }),
+        updateDoc(doc(firestore, 'users', selectedDesignerId), {
+          [`chats.${chatId}`]: currentUser.uid,
+        }),
+      ]);
+  
+      // Add message to the chat
+      const messagesRef = collection(firestore, 'chats', chatId, 'messages');
+      await addDoc(messagesRef, {
+        text: customMessage || "Hi, I'm interested in your design!",
+        createdAt: serverTimestamp(),
+        senderId: currentUser.uid,
         senderName: `${userData?.firstName || 'First'} ${userData?.lastName || 'Last'}`,
       });
+  
+      // Reset modal and message
       setIsMessageModalVisible(false);
-      setCustomMessage("Hi, I'm interested in your design!"); // Reset the message
+      setCustomMessage("Hi, I'm interested in your design!");
     } catch (error) {
       console.error('Error sending message:', error);
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      Alert.alert("Error", "Failed to send message. Please try again later.");
+      Alert.alert('Error', 'Failed to send the message. Please try again.');
     }
-  }, [user, customMessage, selectedDesignerId]);
+  }, [currentUser, selectedDesignerId, customMessage]);
 
-  const handleSwipe = async (id: string, direction: 'left' | 'right', selectedRegion:string) => {
+  const handleSwipe = async (id: string, direction: 'left' | 'right', selectedRegion: string) => {
     try {
-      const designRef = firestore().collection('designs').doc(id);
-      if (direction === 'right') {
-        await designRef.update({
-          likes: firestore.FieldValue.increment(1),
-        });
+      // Determine the field to update based on swipe direction
+      const updateField = direction === 'right' ? { likes: increment(1) } : { dislikes: increment(1) };
+  
+      // Update the main "designs" collection
+      const designRef = doc(firestore, "designs", id);
+      await updateDoc(designRef, updateField);
+  
+      // Update region-specific and global collections if the region is not "Global"
+      if (selectedRegion !== "Global") {
+        const regionDesignRef = doc(firestore, "regions", selectedRegion, "designs", id);
+        const globalRegionDesignRef = doc(firestore, "regions", "Global", "designs", id);
+  
+        await Promise.all([
+          updateDoc(regionDesignRef, updateField),
+          updateDoc(globalRegionDesignRef, updateField),
+        ]);
       } else {
-        await designRef.update({
-          dislikes: firestore.FieldValue.increment(1),
-        });
+        // Update "Global" region only when it's explicitly the selected region
+        const globalRegionDesignRef = doc(firestore, "regions", "Global", "designs", id);
+        await updateDoc(globalRegionDesignRef, updateField);
       }
-      if (selectedRegion !== "Global"){
-        const designRef_region = firestore().collection('regions').doc(selectedRegion).collection('designs').doc(id);
-        const global_region = firestore().collection('regions').doc("Global").collection('designs').doc(id);
-          if (direction === 'right') {
-            await designRef_region.update({
-              likes: firestore.FieldValue.increment(1),
-            });
-            await global_region.update({
-              likes: firestore.FieldValue.increment(1),
-            });
-          } else {
-            await designRef_region.update({
-              dislikes: firestore.FieldValue.increment(1),
-            });
-            await global_region.update({
-              dislikes: firestore.FieldValue.increment(1),
-            });
-          }
-      } else {
-        const designRef_region = firestore().collection('regions').doc(selectedRegion).collection('designs').doc(id);
-      if (direction === 'right') {
-        await designRef_region.update({
-          likes: firestore.FieldValue.increment(1),
-        });
-      } else {
-        await designRef_region.update({
-          dislikes: firestore.FieldValue.increment(1),
-        });
-      }
-      }
-      
+  
       // Update the local state to reflect the change
       setDesigns((prevDesigns) =>
         prevDesigns.map((design) =>
@@ -375,7 +346,22 @@ const SwipeScreen: React.FC = () => {
     );
   }
 
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await auth.signOut();
+      console.log('User logged out successfully');
+  
+      // Navigate to the login screen if necessary
+      navigation.navigate('LoginScreen'); // Replace 'Login' with your navigation route name
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
+    }
+  };
+
   return (
+    <View> <CustomHeader title="Home" onLogout={handleLogout} />
     <SafeAreaView style={styles.container}>
       <Swiper
         ref={swiperRef}
@@ -430,6 +416,7 @@ const SwipeScreen: React.FC = () => {
         </View>
       </Modal>
     </SafeAreaView>
+    </View>
   );
 };
 

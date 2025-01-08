@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, View, Text, FlatList, StyleSheet, Dimensions, Image, RefreshControl, TouchableOpacity } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import CustomHeader from './customheader'; // Import your CustomHeader component
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types'; // Adjust the path as necessary
@@ -30,42 +30,58 @@ const UserDesigns = () => {
   const navigation = useNavigation<RootStackNavigationProp>(); // Use the defined type
   const [userDesigns, setUserDesigns] = useState<Design[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const user = auth().currentUser; // Get the current authenticated user
+  const auth = getAuth();
+  const db = getFirestore();
 
-  const fetchUserDesigns = async () => {
-    if (user) {
-      setIsRefreshing(true);
-      try {
-        const userDoc = await firestore().collection('users').doc(user.uid).get();
-        const uploadedDesignsIds = userDoc.data()?.uploadedDesigns || [];
+  const fetchUserDesigns = async (userId: string) => {
+    setIsRefreshing(true);
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      const userDocSnap = await getDoc(userDocRef);
 
-        // Fetch designs based on uploadedDesignsIds
+      if (userDocSnap.exists()) {
+        const uploadedDesignsIds = userDocSnap.data()?.uploadedDesigns || [];
+
         const designsPromises = uploadedDesignsIds.map(async (id: string) => {
-          const designDoc = await firestore().collection('designs').doc(id).get();
-          return { id: designDoc.id, ...(designDoc.data() as Omit<Design, 'id'>) };
+          const designDocRef = doc(db, 'designs', id);
+          const designDocSnap = await getDoc(designDocRef);
+
+          if (designDocSnap.exists()) {
+            return { id: designDocSnap.id, ...(designDocSnap.data() as Omit<Design, 'id'>) };
+          }
         });
 
         const fetchedDesigns = await Promise.all(designsPromises);
-        setUserDesigns(fetchedDesigns.filter(design => design.title)); // Filter out any designs without titles
-      } catch (error) {
-        console.error('Error fetching user designs:', error);
-      } finally {
-        setIsRefreshing(false);
+        setUserDesigns(fetchedDesigns.filter((design): design is Design => !!design)); // Filter out undefined results
       }
+    } catch (error) {
+      console.error('Error fetching user designs:', error);
+      Alert.alert('Error', 'Failed to fetch your designs. Please try again later.');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchUserDesigns();
-  }, [user]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchUserDesigns(user.uid);
+      } else {
+        setUserDesigns([]);
+      }
+    });
 
-  const handleLogout = () => {
-    auth().signOut().then(() => {
+    return unsubscribe;
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
       Alert.alert('Logged out', 'You have been logged out successfully.');
-    }).catch(error => {
+    } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Logout failed', 'There was an error logging you out.');
-    });
+    }
   };
 
   const navigateToCardDetail = (id: string) => {
@@ -85,9 +101,6 @@ const UserDesigns = () => {
           numColumns={2} // Display two cards per row
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={fetchUserDesigns} />
-          }
         />
       </View>
     </View>

@@ -4,8 +4,8 @@ import { Alert, View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOp
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, UserProfileStackParamList } from './types';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from './customheader';
 
@@ -21,14 +21,19 @@ const UserProfileScreen = () => {
   const [userData, setUserData] = useState<{ firstName: string; lastName: string; profilePicture?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const auth = getAuth();
+  const firestore = getFirestore();
+
   useEffect(() => {
     const fetchUserData = async () => {
-      const currentUser = auth().currentUser;
+      const currentUser = auth.currentUser;
       if (!currentUser) return;
 
       try {
-        const userDoc = await firestore().collection('users').doc(currentUser.uid).get();
-        if (userDoc.exists) {
+        const userDocRef = doc(firestore, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
           const data = userDoc.data();
           setUserData({
             firstName: data?.firstName || '',
@@ -56,26 +61,32 @@ const UserProfileScreen = () => {
     );
   }
 
-const items = [
-  { id: '1', title: 'Profile', screen: 'ProfileScreen' },
-  { id: '2', title: 'Your Designs', screen: 'UserDesigns' },
-  { id: '3', title: 'Rewards', screen: 'RewardsScreen' },
-  { id: '4', title: 'Upload a Design', screen: 'UploadDesignScreen' },
-  { id: '5', title: 'Settings', screen: 'SettingsScreen' },
-];
+  const items = [
+    { id: '1', title: 'Profile', screen: 'ProfileScreen' },
+    { id: '2', title: 'Your Designs', screen: 'UserDesigns' },
+    { id: '3', title: 'Rewards', screen: 'RewardsScreen' },
+    { id: '4', title: 'Upload a Design', screen: 'UploadDesignScreen' },
+    { id: '5', title: 'Settings', screen: 'SettingsScreen' },
+  ];
 
-const handleItemPress = (screen: keyof UserProfileStackParamList) => {
-  navigation.navigate(screen); // Safely type-check the screen
-};
-
-  const handleLogout = () => {
-    auth().signOut().then(() => {
-      Alert.alert('Logged out', 'You have been logged out successfully.');
-    }).catch(error => {
-      console.error('Logout error:', error);
-      Alert.alert('Logout failed', 'There was an error logging you out.');
-    });
+  const handleItemPress = (screen: keyof UserProfileStackParamList) => {
+    navigation.navigate(screen); // Safely type-check the screen
   };
+
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await auth.signOut();
+      console.log('User logged out successfully');
+  
+      // Navigate to the login screen if necessary
+      navigation.navigate('LoginScreen'); // Replace 'Login' with your navigation route name
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
     <CustomHeader title="Profile" onLogout={handleLogout} />

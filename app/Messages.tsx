@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Alert, ActivityIndicator, View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RootStackParamList } from './types';
@@ -17,51 +17,56 @@ interface Chat {
   lastMessage: string;
 }
 
+
 const MessagesScreen = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const db = getFirestore();
+  const auth = getAuth();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
   const fetchChats = async () => {
     try {
-      const user = auth().currentUser;
+      const user = auth.currentUser;
       if (!user) {
         console.log('No user logged in');
         return;
       }
-
-      const userDoc = await firestore().collection('users').doc(user.uid).get();
+  
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
       const userData = userDoc.data();
-      
+  
       if (userData?.chats) {
         const chatList: Chat[] = await Promise.all(
-          Object.entries(userData.chats).map(async ([chatId, designerId]: any) => {
-            const designerDoc = await firestore().collection('users').doc(designerId).get();
+          Object.entries(userData.chats).map(async ([chatId, designerId]) => {
+            const designerDoc = await getDoc(doc(db, 'users', designerId as string)); // Cast designerId to string
             const designerData = designerDoc.data();
-            
-            // Get the last message time from the messages subcollection
-            const messagesQuery = await firestore().collection('chats').doc(chatId).collection('messages').orderBy('createdAt', 'desc').limit(1).get();
-            const lastMessage = messagesQuery.docs[0];
-            const lastMessageData = lastMessage?.data()?.text;
-            const lastMessageTime = lastMessage?.data()?.createdAt?.toMillis() || 0;
-            
+  
+            const messagesQuery = query(
+              collection(db, 'chats', chatId, 'messages'),
+              orderBy('createdAt', 'desc'),
+              limit(1)
+            );
+            const messageDocs = await getDocs(messagesQuery);
+            const lastMessage = messageDocs.docs[0]?.data()?.text || '';
+            const lastMessageTime = messageDocs.docs[0]?.data()?.createdAt?.toMillis() || 0;
+  
             return {
               chatId,
-              designerId,
+              designerId: designerId as string, // Ensure designerId is a string
               firstName: designerData?.firstName || 'Unknown',
               lastName: designerData?.lastName || 'Unknown',
-              lastMessage: lastMessageData,
+              lastMessage,
               lastMessageTime,
             };
           })
         );
-
-        // Sort the chats based on the last message time in descending order
+  
         chatList.sort((a, b) => b.lastMessageTime - a.lastMessageTime);
-        setChats(chatList);
+        setChats(chatList); // Correctly typed now
         setFilteredChats(chatList);
       }
     } catch (error) {
@@ -69,16 +74,14 @@ const MessagesScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchChats();
-    }, [])
-  );
+  };  
 
   useEffect(() => {
-    const filtered = chats.filter(chat => 
+    fetchChats();
+  }, []);
+
+  useEffect(() => {
+    const filtered = chats.filter(chat =>
       `${chat.firstName} ${chat.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredChats(filtered);
@@ -136,13 +139,19 @@ const MessagesScreen = () => {
     </TouchableOpacity>
   );
 
-  const handleLogout = () => {
-    auth().signOut().then(() => {
-      Alert.alert('Logged out', 'You have been logged out successfully.');
-    }).catch(error => {
+
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await auth.signOut();
+      console.log('User logged out successfully');
+  
+      // Navigate to the login screen if necessary
+      navigation.navigate('LoginScreen'); // Replace 'Login' with your navigation route name
+    } catch (error) {
       console.error('Logout error:', error);
-      Alert.alert('Logout failed', 'There was an error logging you out.');
-    });
+      Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
+    }
   };
 
   return (
@@ -165,7 +174,9 @@ const MessagesScreen = () => {
             <ActivityIndicator size="large" color="#0000ff" />
           </View>
         ) : filteredChats.length === 0 ? (
-          <Text style={styles.text}>To interact with designers you like, hold on the designs!</Text>
+          <Text style={styles.text}>
+            To interact with designers you like, hold on the designs!
+          </Text>
         ) : (
           <FlatList
             data={filteredChats}

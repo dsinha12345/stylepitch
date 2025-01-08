@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, View, Text, FlatList, StyleSheet, Dimensions, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, collection, addDoc, onSnapshot, query, orderBy, getDocs, limit } from 'firebase/firestore';
+import app from '@/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types';
 import CustomHeader from './customheader';
@@ -40,110 +41,92 @@ const LeaderBoardScreen = () => {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   
-  // Listen to auth state changes
-  useEffect(() => {
-    const unsubscribeAuth = auth().onAuthStateChanged(user => {
-      setIsAuthenticated(!!user);
-      if (!user) {
+  const auth = getAuth(app);
+  const firestore = getFirestore(app);
+    // Listen to auth state changes
+    useEffect(() => {
+      const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+        setIsAuthenticated(!!user);
+        if (!user) {
+          setRegion("Global");
+          setDesigns([]);
+        }
+      });
+  
+      return () => unsubscribeAuth();
+    }, []);
+  
+    // Fetch user region preference
+    useEffect(() => {
+      let unsubscribe = () => {};
+  
+      if (isAuthenticated) {
+        const user = auth.currentUser;
+        if (user) {
+          const userDocRef = doc(firestore, 'users', user.uid);
+          unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+              const userRegion = doc.data()?.regionPreference;
+              setRegion(userRegion || "Global");
+            }
+          }, (error) => {
+            console.error('Error fetching user region:', error);
+          });
+        }
+      } else {
         setRegion("Global");
-        setDesigns([]);
       }
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
-  useEffect(() => {
-    let unsubscribe = () => {};
-    const user = auth().currentUser
-    if (user) {
-      unsubscribe = firestore()
-        .collection('users')
-        .doc(user.uid)
-        .onSnapshot((doc) => {
-          if (doc.exists) {
-            const userRegion = doc.data()?.regionPreference;
-            setRegion(userRegion || "Global");
-          }
-        }, (error) => {
-          console.error('Error fetching user region:', error);
-        });
-    } else {
-      setRegion("Global");
-    }
-
-    return () => unsubscribe();
-  }, [isAuthenticated]);
-
-  // Handle region subscription only when authenticated
-  useEffect(() => {
-    let unsubscribeRegion: (() => void) | undefined;
-
-    if (isAuthenticated) {
-      const user = auth().currentUser;
-      if (user) {
-        const userDocRef = firestore().collection('users').doc(user.uid);
-        unsubscribeRegion = userDocRef.onSnapshot((doc) => {
-          if (doc.exists) {
-            const userRegion = doc.data()?.regionPreference;
-            setRegion(userRegion);
-          }
-        }, (error) => {
-          console.error('Error fetching user region:', error);
-        });
-      }
-    }
-
-    return () => {
-      if (unsubscribeRegion) {
-        unsubscribeRegion();
-      }
-    };
-  }, [isAuthenticated]);
-
-  // Fetch designs when region changes
-  useEffect(() => {
-    if (!isAuthenticated) return;
   
-    const fetchTopDesigns = async () => {
-      setLoading(true);
+      return () => unsubscribe();
+    }, [isAuthenticated]);
+  
+    // Fetch designs when region changes
+    useEffect(() => {
+      if (!isAuthenticated) return;
+  
+      const fetchTopDesigns = async () => {
+        setLoading(true);
+        try {
+          const designsQuery = query(
+            collection(firestore, 'regions', region, 'designs'),
+            orderBy('likes', 'desc'),
+            limit(10)
+          );
+  
+          const designSnapshot = await getDocs(designsQuery);
+          const designData = designSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as Omit<Design, 'id'>),
+          }));
+  
+          setDesigns(designData);
+        } catch (error) {
+          console.error("Error fetching designs:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      fetchTopDesigns();
+    }, [region, isAuthenticated]);
+  
+    const navigateToCardDetail = (id: string) => {
+      navigation.navigate('CardDetailScreen', { id });
+    };
+  
+    const handleLogout = async () => {
       try {
-        const designSnapshot = await firestore()
-          .collection('regions')
-          .doc(region)
-          .collection('designs')
-          .orderBy('likes', 'desc')
-          .limit(10)
-          .get();
-  
-        const designData = designSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Design[];
-  
-        setDesigns(designData);
+        const auth = getAuth();
+        await auth.signOut();
+        console.log('User logged out successfully');
+    
+        // Navigate to the login screen if necessary
+        navigation.navigate('LoginScreen'); // Replace 'Login' with your navigation route name
       } catch (error) {
-        console.error("Error fetching designs:", error);
-      } finally {
-        setLoading(false);
+        console.error('Logout error:', error);
+        Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
       }
     };
-  
-    fetchTopDesigns();
-  }, [region, isAuthenticated]);
-
-  const navigateToCardDetail = (id: string) => {
-    navigation.navigate('CardDetailScreen', { id });
-  };
-
-  const handleLogout = async () => {
-    try {
-      await auth().signOut();
-      Alert.alert('Logged out', 'You have been logged out successfully.');
-    } catch (error) {
-      console.error('Logout error:', error);
-      Alert.alert('Logout failed', 'There was an error logging you out.');
-    }
-  };
 
   return (
     <View style={{ flex: 1 }}>

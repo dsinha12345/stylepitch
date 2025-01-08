@@ -1,15 +1,21 @@
-// LoginScreen.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from 'react-native';
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,ScrollView,Image,} from 'react-native';
+import {getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,GoogleAuthProvider,signInWithCredential,onAuthStateChanged,} from 'firebase/auth';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from './types';
-import { GoogleSignin, GoogleSigninButton, SignInSuccessResponse } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { Picker } from '@react-native-picker/picker';
+import { initializeApp, getApps } from 'firebase/app';
+import firebaseConfig from '../firebaseConfig';
+import app from '../firebaseConfig';
+
+// Initialize Firebase
+const auth = getAuth(app);
+const firestore = getFirestore(app);
 
 
-const logo = require('../assets/company_logo_only.png'); // Adjust the path based on your project structure
+const logo = require('../assets/company_logo_only.png');
 
 const LoginScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,14 +23,15 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const navigation = useNavigation<RootStackNavigationProp>();
   const [regionPreference, setRegionPreference] = useState('Global');
+  const navigation = useNavigation<RootStackNavigationProp>();
 
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '256007802506-0f12hjubdk4oje52pbkl5lul1gjncat0.apps.googleusercontent.com', // Get this from your google-services.json
+      webClientId: '256007802506-0f12hjubdk4oje52pbkl5lul1gjncat0.apps.googleusercontent.com',
     });
   }, []);
+
   const toggleForm = () => {
     setIsLogin(!isLogin);
     setEmail('');
@@ -48,12 +55,11 @@ const LoginScreen = () => {
       return;
     }
 
-    auth()
-      .signInWithEmailAndPassword(email, password)
+    signInWithEmailAndPassword(auth, email, password)
       .then(() => {
         navigation.navigate('MainScreen');
       })
-      .catch(error => {
+      .catch((error) => {
         if (error.code === 'auth/user-not-found') {
           Alert.alert('Error', 'No user found with this email.');
         } else if (error.code === 'auth/wrong-password') {
@@ -65,34 +71,31 @@ const LoginScreen = () => {
   };
 
   const handleRegister = () => {
-    if (email === '' || password === '' || firstName === '' || lastName === '' || regionPreference === ''){
+    if (
+      email === '' ||
+      password === '' ||
+      firstName === '' ||
+      lastName === '' ||
+      regionPreference === ''
+    ) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    auth()
-      .createUserWithEmailAndPassword(email, password)
-      .then((userCredential) => {
+    createUserWithEmailAndPassword(auth, email, password)
+      .then(async (userCredential) => {
         const user = userCredential.user;
 
-        // Store additional user data in Firestore after user is created
-        firestore()
-          .collection('users')
-          .doc(user.uid)
-          .set({
-            firstName: firstName,
-            lastName: lastName,
-            email: email,
-            regionPreference : regionPreference,
-          })
-          .then(() => {
-            Alert.alert('Registration Success', `Account created for ${firstName}`);
-            navigation.navigate('MainScreen');
-          })
-          .catch((error) => {
-            Alert.alert('Error', 'Failed to save user data. Please try again.');
-            console.error('Error saving user data:', error);
-          });
+        // Store additional user data in Firestore
+        await setDoc(doc(firestore, 'users', user.uid), {
+          firstName,
+          lastName,
+          email,
+          regionPreference,
+        });
+
+        Alert.alert('Registration Success', `Account created for ${firstName}`);
+        navigation.navigate('MainScreen');
       })
       .catch((error) => {
         if (error.code === 'auth/email-already-in-use') {
@@ -106,29 +109,28 @@ const LoginScreen = () => {
         }
       });
   };
+
   const handleGoogleSignIn = async () => {
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-      // Check if response is a SignInSuccessResponse
+
       if (response && response.data && response.data.idToken) {
         const idToken = response.data.idToken; // Type assertion
+        const googleCredential = GoogleAuthProvider.credential(idToken);
+        const userCredential = await signInWithCredential(auth, googleCredential);
 
-        const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-        const userCredential = await auth().signInWithCredential(googleCredential);
-  
-        // Handle new user logic
         if (userCredential.additionalUserInfo?.isNewUser) {
-          const { givenName, familyName, email, photo } = response.data.user; // Extract user data
-  
-          await firestore().collection('users').doc(userCredential.user.uid).set({
-            firstName: givenName || '',
-            lastName: familyName || '',
-            email: email,
-            profilePicture: photo || '', // Save the profile picture URL
+          const { displayName, email, photoURL } = userCredential.user;
+
+          await setDoc(doc(firestore, 'users', userCredential.user.uid), {
+            firstName: displayName?.split(' ')[0] || '',
+            lastName: displayName?.split(' ')[1] || '',
+            email,
+            profilePicture: photoURL || '',
           });
         }
-  
+
         Alert.alert('Login Success', `Welcome, ${userCredential.user.displayName}`);
         navigation.navigate('MainScreen');
       } else {
@@ -139,7 +141,7 @@ const LoginScreen = () => {
       Alert.alert('Error', 'Google Sign-In failed. Please try again.');
     }
   };
-  
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -150,38 +152,35 @@ const LoginScreen = () => {
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChangeText={(text) => setEmail(text)}
+        onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
       />
-
       <TextInput
         style={styles.input}
         placeholder="Password"
         value={password}
-        onChangeText={(text) => setPassword(text)}
-        secureTextEntry={true}
+        onChangeText={setPassword}
+        secureTextEntry
       />
-
       {!isLogin && (
         <>
           <TextInput
             style={styles.input}
             placeholder="First Name"
             value={firstName}
-            onChangeText={(text) => setFirstName(text)}
+            onChangeText={setFirstName}
           />
-
           <TextInput
             style={styles.input}
             placeholder="Last Name"
             value={lastName}
-            onChangeText={(text) => setLastName(text)}
+            onChangeText={setLastName}
           />
           <Text style={styles.label}>Region Preference</Text>
           <Picker
             selectedValue={regionPreference}
-            onValueChange={(itemValue) => setRegionPreference(itemValue)}
+            onValueChange={setRegionPreference}
             style={styles.picker}
           >
             <Picker.Item label="Global" value="Global" />
@@ -195,20 +194,15 @@ const LoginScreen = () => {
           </Picker>
         </>
       )}
-
       <TouchableOpacity style={styles.submitButton} onPress={handleFormSubmit}>
         <Text style={styles.submitButtonText}>{isLogin ? 'Login' : 'Register'}</Text>
       </TouchableOpacity>
-
-      <View style={styles.googleButtonContainer}>
-  <GoogleSigninButton
-    style={styles.googleButton}
-    size={GoogleSigninButton.Size.Icon} // You can adjust this as needed
-    color={GoogleSigninButton.Color.Light}
-    onPress={handleGoogleSignIn}
-  />
-</View>
-
+      <GoogleSigninButton
+        style={styles.googleButton}
+        size={GoogleSigninButton.Size.Icon}
+        color={GoogleSigninButton.Color.Light}
+        onPress={handleGoogleSignIn}
+      />
       <TouchableOpacity onPress={toggleForm}>
         <Text style={styles.toggleText}>
           {isLogin ? 'Don\'t have an account? Register' : 'Already have an account? Login'}
@@ -227,42 +221,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor : "#f8f9f9"
+    backgroundColor: '#f8f9f9',
   },
-  googleButtonContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    // Ensure the button doesn't overflow the container
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  googleButton: {
-    width: '100%', // Use full width of the container
-    height: '100%', // Use full height of the container
+  logo: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
   },
   header: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  picker: {
-    width: '100%',
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 10,
-    alignSelf: 'flex-start',
-  },
-  logo: {
-    width: 150, // Adjust width as needed
-    height: 150, // Adjust height as needed
     marginBottom: 20,
   },
   input: {
@@ -272,6 +240,13 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderWidth: 1,
     borderRadius: 8,
+  },
+  picker: {
+    width: '100%',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 10,
   },
   submitButton: {
     width: '100%',
@@ -285,16 +260,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
+  googleButton: {
+    width: 50,
+    height: 50,
+    marginVertical: 10,
+  },
   toggleText: {
     color: '#fb5a03',
     marginTop: 10,
+    fontSize: 16,
+  },
+  label: {
+    width: '100%',
+    marginBottom: 5,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   forgotPasswordText: {
     color: '#fb5a03',
     marginTop: 10,
     textDecorationLine: 'underline', // Optional: adds underline to indicate it's a link
     fontSize: 14, // Optional: adjust size as needed
-},
+  },
 });
+
 
 export default LoginScreen;

@@ -20,6 +20,7 @@ export type RootStackParamList = {
   SelectRegion: { designTitle: string; imageUrls: string[] };
   RegionSelection: undefined;
   ForgotPasswordScreen: undefined;
+  Login : undefined;
 };
 
 // User Profile Stack Parameter List

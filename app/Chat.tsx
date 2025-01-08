@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ActivityIndicator, StyleSheet, SafeAreaView, Platform, StatusBar, Text } from 'react-native';
+import { Alert, View, ActivityIndicator, StyleSheet, SafeAreaView, Platform, StatusBar, Text } from 'react-native';
 import { GiftedChat, IMessage, Bubble, Send, InputToolbar } from 'react-native-gifted-chat';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from './types';
+import CustomHeader from './customheader';
+import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
+
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'ChatScreen'>;
 type ChatScreenNavigationProp = StackNavigationProp<RootStackParamList, 'ChatScreen'>;
@@ -20,43 +23,46 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+
+  const auth = getAuth();
+  const db = getFirestore();
+
   useEffect(() => {
-    const user = auth().currentUser;
+    const user = auth.currentUser;
 
     if (!user) {
       console.log('No user logged in');
       return;
     }
 
-    const unsubscribe = firestore()
-      .collection('chats')
-      .doc(chatId)
-      .collection('messages')
-      .orderBy('createdAt', 'desc')
-      .onSnapshot((querySnapshot) => {
-        const messagesFromFirestore = querySnapshot.docs.map((doc) => {
-          const firebaseData = doc.data();
-          const message: IMessage = {
-            _id: doc.id,
-            text: firebaseData.text,
-            createdAt: firebaseData.createdAt.toDate(),
-            user: {
-              _id: firebaseData.senderId,
-              name: firebaseData.senderName,
-            },
-          };
-          return message;
-        });
+    const chatRef = collection(db, 'chats', chatId, 'messages');
+    const q = query(chatRef, orderBy('createdAt', 'desc'));
 
-        setMessages(messagesFromFirestore);
-        setLoading(false);
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const messagesFromFirestore = querySnapshot.docs.map((doc) => {
+        const firebaseData = doc.data();
+        const message: IMessage = {
+          _id: doc.id,
+          text: firebaseData.text,
+          createdAt: firebaseData.createdAt.toDate(),
+          user: {
+            _id: firebaseData.senderId,
+            name: firebaseData.senderName,
+          },
+        };
+        return message;
       });
 
-    return () => unsubscribe();
-  }, [chatId]);
+      setMessages(messagesFromFirestore);
+      setLoading(false);
+    });
 
-  const onSend = useCallback((newMessages: IMessage[] = []) => {
-    const user = auth().currentUser;
+    return () => unsubscribe();
+  }, [chatId, db]);
+
+  const onSend = useCallback(async(newMessages: IMessage[] = []) => {
+    const user = auth.currentUser;
 
     if (!user) {
       console.log('No user logged in');
@@ -65,17 +71,21 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
 
     const message = newMessages[0];
 
-    firestore()
-      .collection('chats')
-      .doc(chatId)
-      .collection('messages')
-      .add({
+    try {
+      const chatRef = collection(db, 'chats', chatId, 'messages');
+      await addDoc(chatRef, {
         text: message.text,
         createdAt: new Date(),
         senderId: user.uid,
         senderName: user.displayName || 'Unknown',
       });
-  }, [chatId]);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  },
+  [chatId, db]
+);
+
 
   const renderBubble = (props: any) => {
     return (
@@ -129,14 +139,28 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ route }) => {
     );
   }
 
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await auth.signOut();
+      console.log('User logged out successfully');
+  
+      // Navigate to the login screen if necessary
+      navigation.navigate('LoginScreen'); // Replace 'Login' with your navigation route name
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
+    }
+  };
   return (
     <SafeAreaView style={styles.container}>
+      <CustomHeader title="Chat" onLogout={handleLogout} />
       <GiftedChat
         messages={messages}
         onSend={(newMessages) => onSend(newMessages)}
         user={{
-          _id: auth().currentUser?.uid || '',
-          name: auth().currentUser?.displayName || 'You',
+          _id: auth.currentUser?.uid || '',
+          name: auth.currentUser?.displayName || 'You',
         }}
         renderBubble={renderBubble}
         renderSend={renderSend}
