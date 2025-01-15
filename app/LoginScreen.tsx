@@ -119,6 +119,7 @@ const LoginScreen = () => {
         const idToken = response.data.idToken; // Type assertion
         const googleCredential = GoogleAuthProvider.credential(idToken);
         const userCredential = await signInWithCredential(auth, googleCredential);
+        console.log(userCredential);
 
         if (userCredential.additionalUserInfo?.isNewUser) {
           const { displayName, email, photoURL } = userCredential.user;
@@ -197,12 +198,14 @@ const LoginScreen = () => {
       <TouchableOpacity style={styles.submitButton} onPress={handleFormSubmit}>
         <Text style={styles.submitButtonText}>{isLogin ? 'Login' : 'Register'}</Text>
       </TouchableOpacity>
-      <GoogleSigninButton
-        style={styles.googleButton}
-        size={GoogleSigninButton.Size.Icon}
-        color={GoogleSigninButton.Color.Light}
-        onPress={handleGoogleSignIn}
-      />
+      <View style={styles.googleButtonContainer}>
+  <GoogleSigninButton
+    style={styles.googleButton}
+    size={GoogleSigninButton.Size.Icon} // You can adjust this as needed
+    color={GoogleSigninButton.Color.Light}
+    onPress={handleGoogleSignIn}
+  />
+</View>
       <TouchableOpacity onPress={toggleForm}>
         <Text style={styles.toggleText}>
           {isLogin ? 'Don\'t have an account? Register' : 'Already have an account? Login'}
@@ -260,10 +263,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
-  googleButton: {
+  googleButtonContainer: {
     width: 50,
     height: 50,
-    marginVertical: 10,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  googleButton: {
+    width: '100%', // Use full width of the container
+    height: '100%', // Use full height of the container
   },
   toggleText: {
     color: '#fb5a03',

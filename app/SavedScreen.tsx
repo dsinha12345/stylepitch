@@ -80,15 +80,18 @@ const SavedScreen = () => {
     navigation.navigate('CardDetailScreen', { id }); // Navigate to CardDetailScreen with the design ID
   };
 
-  const handleLogout = () => {
-    signOut(auth)
-      .then(() => {
-        Alert.alert('Logged out', 'You have been logged out successfully.');
-      })
-      .catch((error) => {
-        console.error('Logout error:', error);
-        Alert.alert('Logout failed', 'There was an error logging you out.');
-      });
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await auth.signOut();
+      console.log('User logged out successfully');
+  
+      // Navigate to the login screen if necessary
+      navigation.navigate('LoginScreen'); // Replace 'Login' with your navigation route name
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Logout Error', 'An error occurred while logging out. Please try again.');
+    }
   };
   return (
     <View style={{ flex: 1 }}>

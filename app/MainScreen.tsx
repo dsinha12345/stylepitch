@@ -18,7 +18,7 @@ const MainScreen = () => {
     <Tab.Navigator
       initialRouteName='Home'
       screenOptions={({ route }) => ({
-        tabBarStyle: { backgroundColor: '#fff', borderTopColor: '#eee', paddingVertical: 20 },
+        tabBarStyle: { backgroundColor: '#fff', borderTopColor: '#eee', paddingVertical: 0},
         tabBarLabelStyle: { fontSize: 16 },
         headerShown: false
       })}
