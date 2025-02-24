@@ -8,14 +8,17 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/company_logo_only.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.stylepitch.signin",
-      "googleServicesFile":"./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +26,8 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.stylepitch.signin",
-      "googleServicesFile":"./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
@@ -32,10 +36,12 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-build-properties",
+      [
+        "expo-build-properties",
         {
-          "ios":
-            {"useframeworks":"static"}
+          "ios": {
+            "useframeworks": "static"
+          }
         }
       ],
       "@react-native-firebase/app",
@@ -53,6 +59,9 @@
         "projectId": "775960fc-db4a-431e-b3bb-4896c4662446"
       }
     },
-    "owner": "dsinha12345"
+    "owner": "dsinha12345",
+    "updates": {
+      "url": "https://u.expo.dev/775960fc-db4a-431e-b3bb-4896c4662446"
+    }
   }
 }
